@@ -35,6 +35,7 @@
       'nav.home': 'Home', 'nav.courses': 'Courses', 'nav.practice': 'Practice',
       'nav.aiTutor': 'AI Tutor', 'nav.community': 'Community', 'nav.progress': 'Progress',
       'nav.profile': 'Profile', 'nav.settings': 'Settings', 'nav.admin': 'Admin',
+      'nav.vocab': 'Vocabulary', 'nav.library': 'Library', 'nav.exams': 'Exams',
       'search.placeholder': 'Search courses, lessons, vocabulary…',
       'home.hero.title': 'Learn Chinese, starting today.', 'home.hero.sub': 'Master Chinese through structured courses, interactive practice, and AI-powered learning tools.',
       'home.startLearning': 'Start Learning', 'home.takeTest': 'Take HSK Test',

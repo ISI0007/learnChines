@@ -9,15 +9,17 @@
   var NAV = [
     { path: '/', key: 'nav.home', ic: '🏠' },
     { path: '/courses', key: 'nav.courses', ic: '📚' },
+    { path: '/vocabulary', key: 'nav.vocab', ic: '🔤' },
+    { path: '/library', key: 'nav.library', ic: '📖' },
+    { path: '/exams', key: 'nav.exams', ic: '📝' },
     { path: '/practice', key: 'nav.practice', ic: '🎧' },
     { path: '/ai-tutor', key: 'nav.aiTutor', ic: '🤖' },
-    { path: '/community', key: 'nav.community', ic: '💬' },
   ];
   var MOBILE = [
     { path: '/', key: 'nav.home', ic: '🏠' },
     { path: '/courses', key: 'nav.courses', ic: '📚' },
-    { path: '/practice', key: 'nav.practice', ic: '🎧' },
-    { path: '/ai-tutor', key: 'nav.aiTutor', ic: '🤖' },
+    { path: '/vocabulary', key: 'nav.vocab', ic: '🔤' },
+    { path: '/library', key: 'nav.library', ic: '📖' },
     { path: '/profile', key: 'nav.profile', ic: '👤' },
   ];
 
@@ -77,12 +79,29 @@
     render: function () {
       var view = $('#view');
       if (!view) return;
-      var name = window.Router.current.name || '/';
-      var fn = ({ '/': 'home', '/courses': 'courses', '/practice': 'practice', '/ai-tutor': 'aiTutor',
-        '/community': 'community', '/exams': 'exams', '/progress': 'progress', '/profile': 'profile',
-        '/settings': 'settings', '/admin': 'admin' })[name] || 'home';
+      var cur = window.Router.current || { name: '/', params: {} };
+      var name = cur.name || '/', params = cur.params || {};
       var page = window.UI.el('div', 'page');
-      window.Views[fn] ? window.Views[fn](page) : window.Views.home(page);
+      var V = window.Views, V3 = window.Views3;
+      var fn =
+        name === '/' ? function () { V.home(page); } :
+        name === '/courses' ? function () { V3.courses(page); } :
+        name === '/syllabus/:level' ? function () { V3.syllabus(page, params.level); } :
+        name === '/lesson/:id' ? function () { V3.lesson(page, params.id); } :
+        name === '/vocabulary' ? function () { V3.vocabulary(page); } :
+        name === '/library' ? function () { V3.library(page); } :
+        name === '/book/:idx' ? function () { V3.book(page, params.idx); } :
+        name === '/exams' ? function () { V3.exams(page); } :
+        name === '/exam/:id' ? function () { V3.exam(page, params.id); } :
+        name === '/practice' ? function () { V.practice(page); } :
+        name === '/ai-tutor' ? function () { V.aiTutor(page); } :
+        name === '/community' ? function () { V.community(page); } :
+        name === '/progress' ? function () { V.progress(page); } :
+        name === '/profile' ? function () { V.profile(page); } :
+        name === '/settings' ? function () { V.settings(page); } :
+        name === '/admin' ? function () { V.admin(page); } :
+        function () { V.home(page); };
+      fn();
       window.UI.mount(view, [page]);
       App.refreshChrome();
       window.scrollTo(0, 0);
@@ -120,16 +139,10 @@
     App.bind();
 
     // routes (hash-based)
-    window.Router.on('/', function () { App.render(); });
-    window.Router.on('/courses', function () { App.render(); });
-    window.Router.on('/practice', function () { App.render(); });
-    window.Router.on('/ai-tutor', function () { App.render(); });
-    window.Router.on('/community', function () { App.render(); });
-    window.Router.on('/exams', function () { App.render(); });
-    window.Router.on('/progress', function () { App.render(); });
-    window.Router.on('/profile', function () { App.render(); });
-    window.Router.on('/settings', function () { App.render(); });
-    window.Router.on('/admin', function () { App.render(); });
+    ['/', '/courses', '/practice', '/ai-tutor', '/community', '/exams', '/progress', '/profile', '/settings', '/admin',
+     '/syllabus/:level', '/lesson/:id', '/vocabulary', '/library', '/book/:idx', '/exam/:id'].forEach(function (p) {
+      window.Router.on(p, function () { App.render(); });
+    });
 
     // initial render + route
     App.render();

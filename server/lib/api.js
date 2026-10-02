@@ -71,6 +71,28 @@ function ensureProgress(user) {
   if (!user.progress || typeof user.progress !== 'object') user.progress = db.defaultProgress();
   return user.progress;
 }
+const UI_LANGS = ['en','zh-CN','zh-TW','ru','ur','ar','fa','hi','es','fr','de','pt','ja','ko','it','tr','id','vi','bn','th'];
+const PINYIN = ['always','click','hidden'];
+const CHARS = ['simplified','traditional','both'];
+const TDM = ['always','click','hidden'];
+function pick(v, allowed, def) { return allowed.includes(v) ? v : def; }
+function sanitizeSettings(input) {
+  const out = db.defaultSettings();
+  if (!input || typeof input !== 'object') return out;
+  out.uiLanguage = pick(input.uiLanguage, UI_LANGS, out.uiLanguage);
+  out.learningLanguage = ['zh-CN','zh-TW'].includes(input.learningLanguage) ? input.learningLanguage : out.learningLanguage;
+  out.translationLanguage = pick(input.translationLanguage, UI_LANGS, out.translationLanguage);
+  out.pinyinPreference = pick(input.pinyinPreference, PINYIN, out.pinyinPreference);
+  out.characterPreference = pick(input.characterPreference, CHARS, out.characterPreference);
+  out.translationDisplayMode = pick(input.translationDisplayMode, TDM, out.translationDisplayMode);
+  out.dailyGoalMinutes = clampInt(input.dailyGoalMinutes, 0, 600);
+  out.updatedAt = new Date().toISOString();
+  return out;
+}
+function ensureSettings(user) {
+  if (!user.settings || typeof user.settings !== 'object') user.settings = db.defaultSettings();
+  return user.settings;
+}
 function touchDay(user) {
   const p = ensureProgress(user);
   const today = todayStr();
@@ -133,7 +155,15 @@ function logout(ctx) {
 }
 
 function me(ctx) {
-  ok(ctx.res, { user: auth.publicUser(ctx.user), progress: ensureProgress(ctx.user), serverTime: new Date().toISOString() });
+  ok(ctx.res, { user: auth.publicUser(ctx.user), progress: ensureProgress(ctx.user), settings: ensureSettings(ctx.user), serverTime: new Date().toISOString() });
+}
+
+function getSettings(ctx) { ok(ctx.res, { settings: ensureSettings(ctx.user) }); }
+
+function putSettings(ctx) {
+  ctx.user.settings = sanitizeSettings(ctx.body && ctx.body.settings ? ctx.body.settings : ctx.body);
+  db.saveUsers();
+  ok(ctx.res, { settings: ctx.user.settings });
 }
 
 function getProgress(ctx) { ok(ctx.res, { progress: ensureProgress(ctx.user) }); }
@@ -222,4 +252,4 @@ function adminSessions(ctx) {
   ok(ctx.res, { sessions });
 }
 
-module.exports = { register, login, logout, me, getProgress, putProgress, postActivity, changePassword, adminUsers, adminUser, adminSessions, fail, ok };
+module.exports = { register, login, logout, me, getProgress, putProgress, postActivity, changePassword, getSettings, putSettings, adminUsers, adminUser, adminSessions, fail, ok };

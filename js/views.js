@@ -62,12 +62,12 @@
       mount.appendChild(lvl);
 
       // Daily challenge (Spec §12) — uses a real word from the dataset
-      var w = (((window.VOCAB || {})[3] || [])[12]) || { s: '坚持', p: 'jiānchí', d: 'to persist' };
+      var w = (window.Vocab && window.Vocab.daily()) || { s: '坚持', p: 'jiānchí', d: 'to persist' };
       var daily = el('section', 'section');
       daily.appendChild(U.sectionHead(t('home.daily.title')));
       var dc = U.card([]);
       dc.appendChild(el('div', 'ui-muted', window.UI.esc(t('home.daily.word'))));
-      dc.appendChild(el('div', null, '<div style="font-size:40px;font-weight:800">' + window.UI.esc(w.s) + '</div><div style="color:var(--primary);font-size:17px">' + window.UI.esc(w.p || '') + '</div><div class="ui-muted">' + window.UI.esc(w.d) + '</div>'));
+      dc.appendChild(el('div', null, '<div style="font-size:40px;font-weight:800">' + window.UI.esc(window.Vocab ? window.Vocab.surface(w) : w.s) + '</div><div style="color:var(--primary);font-size:17px">' + window.UI.esc(w.p || '') + '</div><div class="ui-muted">' + window.UI.esc(w.d) + '</div>'));
       var drow = el('div', 'ui-row'); drow.style.marginTop = '14px';
       drow.appendChild(U.button(t('home.daily.cta'), { variant: 'primary', onClick: function () { window.Router.go('/practice'); } }));
       dc.appendChild(drow);
@@ -106,7 +106,8 @@
     },
 
     courses: function (mount) {
-      Views.placeholder(mount, { title: t('nav.courses'), phase: 'Phase 3 — Learning Core', icon: '📚', note: 'Courses, lessons, enrollment, and progress arrive in Phase 3.' });
+      if (window.Views3) return window.Views3.courses(mount);
+      Views.placeholder(mount, { title: t('nav.courses'), phase: 'Phase 3', icon: '📚' });
     },
     practice: function (mount) {
       Views.placeholder(mount, { title: t('nav.practice'), phase: 'Phase 4 — Practice', icon: '🎧', note: 'Listening, speaking, writing, reading, quizzes, and spaced review arrive in Phase 4.' });
@@ -118,7 +119,8 @@
       Views.placeholder(mount, { title: t('nav.community'), phase: 'Phase 10 — Community', icon: '💬' });
     },
     exams: function (mount) {
-      Views.placeholder(mount, { title: 'HSK Mock Tests', phase: 'Phase 4 — Exams', icon: '📝' });
+      if (window.Views3) return window.Views3.exams(mount);
+      Views.placeholder(mount, { title: 'HSK Mock Tests', phase: 'Phase 4', icon: '📝' });
     },
     progress: function (mount) {
       var U = window.UI;
@@ -153,23 +155,53 @@
       mount.appendChild(wrap);
     },
     settings: function (mount) {
-      var U = window.UI, S = window.Store.state;
+      var U = window.UI, S = window.Settings ? window.Settings.get() : {};
       var wrap = el('div', 'section');
       wrap.appendChild(el('h1', 'ui-h1', t('nav.settings')));
-      var c = U.card([]); c.style.marginTop = '16px';
-      c.appendChild(el('div', 'ui-h3', 'Language'));
-      var row = el('div', 'ui-row'); row.style.marginTop = '8px';
-      row.appendChild(el('span', 'ui-muted', 'Interface language'));
-      var sel = el('select', 'lang-select');
-      Object.keys(window.I18N.locales).forEach(function (code) {
-        var o = el('option', null, window.I18N.locales[code].name); o.value = code;
-        if (code === window.I18N.lang) o.selected = true;
-        sel.appendChild(o);
-      });
-      sel.addEventListener('change', function () { window.I18N.set(sel.value); window.App.refreshChrome(); window.App.render(); });
-      row.appendChild(sel);
-      c.appendChild(row);
-      wrap.appendChild(c);
+      wrap.appendChild(el('p', 'ui-muted', 'Choose how the interface, your learning content, and translations appear. Saved to your account.'));
+
+      function sel(label, key, options, hint) {
+        var card = el('div', 'ui-card');
+        card.appendChild(el('div', 'ui-h3', U.esc(label)));
+        if (hint) card.appendChild(el('p', 'ui-muted', U.esc(hint)));
+        var row = el('div', 'ui-row'); row.style.marginTop = '10px';
+        var s = el('select', 'lang-select');
+        options.forEach(function (o) {
+          var op = el('option', null, U.esc(o.name)); op.value = o.code;
+          if (o.code === S[key]) op.selected = true;
+          s.appendChild(op);
+        });
+        s.addEventListener('change', function () {
+          window.Settings.set(key, s.value);
+          window.UI.toast('Saved');
+          if (key === 'uiLanguage') { window.App.refreshChrome(); window.App.render(); }
+        });
+        row.appendChild(s);
+        card.appendChild(row);
+        return card;
+      }
+
+      var g1 = el('div', 'ui-grid cols-3'); g1.style.marginTop = '16px';
+      g1.appendChild(sel('Interface language', 'uiLanguage', window.Settings.translationLanguages(), 'Menus, buttons, and labels.'));
+      g1.appendChild(sel('Learning language', 'learningLanguage', window.Settings.learningLanguages(), 'The Chinese you are studying.'));
+      g1.appendChild(sel('Translation language', 'translationLanguage', window.Settings.translationLanguages(), 'The language meanings are shown in.'));
+      wrap.appendChild(g1);
+
+      var g2 = el('div', 'ui-grid cols-3'); g2.style.marginTop = '16px';
+      g2.appendChild(sel('Pinyin', 'pinyinPreference', [{ code: 'always', name: 'Always show' }, { code: 'click', name: 'Show on click' }, { code: 'hidden', name: 'Hidden' }]));
+      g2.appendChild(sel('Characters', 'characterPreference', [{ code: 'simplified', name: 'Simplified' }, { code: 'traditional', name: 'Traditional' }, { code: 'both', name: 'Both' }]));
+      g2.appendChild(sel('Translation display', 'translationDisplayMode', [{ code: 'always', name: 'Always show' }, { code: 'click', name: 'Show on click' }, { code: 'hidden', name: 'Hidden' }]));
+      wrap.appendChild(g2);
+
+      if (window.Store.state.user) {
+        var act = el('div', 'ui-card'); act.style.marginTop = '16px';
+        act.appendChild(el('div', 'ui-h3', 'Account'));
+        act.appendChild(el('p', 'ui-muted', '@' + U.esc(window.Store.state.user.username) + ' · ' + (window.Store.state.user.role === 'admin' ? 'Administrator' : 'Learner')));
+        var r = el('div', 'ui-row'); r.style.marginTop = '10px';
+        r.appendChild(U.button('Sign out', { onClick: function () { window.Store.signOut(); } }));
+        act.appendChild(r);
+        wrap.appendChild(act);
+      }
       mount.appendChild(wrap);
     },
     admin: function (mount) {

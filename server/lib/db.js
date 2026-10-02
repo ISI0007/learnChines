@@ -24,6 +24,18 @@ function writeJson(file, obj) {
 function saveUsers() { writeJson(USERS_FILE, { users: state.users }); }
 function saveSessions() { writeJson(SESS_FILE, { sessions: state.sessions }); }
 
+function defaultSettings() {
+  return {
+    uiLanguage: 'en',
+    learningLanguage: 'zh-CN',
+    translationLanguage: 'en',
+    pinyinPreference: 'always',
+    characterPreference: 'simplified',
+    translationDisplayMode: 'always',
+    dailyGoalMinutes: 30,
+  };
+}
+
 function defaultProgress() {
   return {
     known: {},
@@ -68,6 +80,7 @@ function createUser(opts) {
     lastLoginAt: null,
     loginCount: 0,
     progress: defaultProgress(),
+    settings: defaultSettings(),
     activity: [],
   };
   state.users.push(u);
@@ -77,5 +90,5 @@ function createUser(opts) {
 
 module.exports = {
   state, load, saveUsers, saveSessions,
-  findUserByName, findUserById, createUser, defaultProgress, ensureDir,
+  findUserByName, findUserById, createUser, defaultProgress, defaultSettings, ensureDir,
 };

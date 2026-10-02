@@ -114,7 +114,7 @@ function serveStatic(req, res, urlPath) {
 }
 
 // ── routing ──
-const AUTH_REQUIRED = new Set(['me', 'getProgress', 'putProgress', 'postActivity', 'changePassword', 'adminUsers', 'adminUser', 'adminSessions']);
+const AUTH_REQUIRED = new Set(['me', 'getProgress', 'putProgress', 'postActivity', 'changePassword', 'getSettings', 'putSettings', 'adminUsers', 'adminUser', 'adminSessions']);
 
 async function handleApi(req, res, url) {
   const p = url.pathname;
@@ -150,6 +150,8 @@ async function handleApi(req, res, url) {
   else if (p === '/api/progress' && method === 'PUT') route = 'putProgress';
   else if (p === '/api/activity' && method === 'POST') route = 'postActivity';
   else if (p === '/api/change-password' && method === 'POST') route = 'changePassword';
+  else if (p === '/api/settings' && method === 'GET') route = 'getSettings';
+  else if (p === '/api/settings' && method === 'PUT') route = 'putSettings';
   else if (p === '/api/admin/users' && method === 'GET') route = 'adminUsers';
   else if (p === '/api/admin/sessions' && method === 'GET') route = 'adminSessions';
   else {
