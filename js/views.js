@@ -37,8 +37,6 @@
     home: function (mount) {
       var U = window.UI;
 
-      if (window.Providers.isDemo()) mount.appendChild(U.demoBanner(t('msg.demoMode')));
-
       // Hero
       var hero = el('section', 'hero');
       hero.appendChild(el('h1', null, window.UI.esc(t('home.hero.title'))));
@@ -87,7 +85,7 @@
       var pg = el('div', 'ui-grid cols-4');
       pg.appendChild(phaseCard('Courses & lessons', 'Structured HSK courses, enrollment, progress.', 'Phase 3', '📚'));
       pg.appendChild(phaseCard('Practice center', 'Listening, speaking, reading, writing, review.', 'Phase 4', '🎧'));
-      pg.appendChild(phaseCard('AI Tutor', 'Multilingual tutor with context + RAG.', 'Phase 5–7', '🤖'));
+      pg.appendChild(phaseCard('Speaking practice', 'Repeat sentences aloud with scoring.', 'Phase 8', '🗣️'));
       pg.appendChild(phaseCard('Community', 'Discussion, language exchange, study groups.', 'Phase 10', '💬'));
       plan.appendChild(pg);
       mount.appendChild(plan);
@@ -99,7 +97,6 @@
       var wrap = el('div', 'section');
       wrap.appendChild(el('h1', 'ui-h1', window.UI.esc(opts.title)));
       if (opts.sub) wrap.appendChild(el('p', 'ui-muted', window.UI.esc(opts.sub)));
-      if (window.Providers.isDemo()) wrap.appendChild(U.demoBanner(t('msg.demoMode')));
       var c = U.card([]);
       c.style.marginTop = '16px';
       c.appendChild(el('div', null, '<div style="font-size:30px">' + (opts.icon || '🧩') + '</div>'));
@@ -118,9 +115,6 @@
     },
     practice: function (mount) {
       Views.placeholder(mount, { title: t('nav.practice'), phase: 'Phase 4 — Practice', icon: '🎧', note: 'Listening, speaking, writing, reading, quizzes, and spaced review arrive in Phase 4.' });
-    },
-    aiTutor: function (mount) {
-      Views.placeholder(mount, { title: t('nav.aiTutor'), phase: 'Phase 5–7 — AI', icon: '🤖', note: 'The AI tutor needs a provider. A mock provider is in place so this screen runs in demo mode.' });
     },
     community: function (mount) {
       Views.placeholder(mount, { title: t('nav.community'), phase: 'Phase 10 — Community', icon: '💬' });

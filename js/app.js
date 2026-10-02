@@ -13,7 +13,7 @@
     { path: '/library', key: 'nav.library', ic: '📖' },
     { path: '/exams', key: 'nav.exams', ic: '📝' },
     { path: '/practice', key: 'nav.practice', ic: '🎧' },
-    { path: '/ai-tutor', key: 'nav.aiTutor', ic: '🤖' },
+    { path: '/speaking', key: 'nav.speaking', ic: '🗣️' },
   ];
   var MOBILE = [
     { path: '/', key: 'nav.home', ic: '🏠' },
@@ -96,7 +96,6 @@
         name === '/practice' ? function () { V5.practice(page); } :
         name === '/study/:mode' ? function () { V5.study(page, params.mode); } :
         name === '/speaking' ? function () { V6.speaking(page); } :
-        name === '/ai-tutor' ? function () { V4.aiTutor(page); } :
         name === '/community' ? function () { V6.community(page); } :
         name === '/progress' ? function () { V4.progress(page); } :
         name === '/profile' ? function () { V.profile(page); } :
@@ -141,7 +140,7 @@
     App.bind();
 
     // routes (hash-based)
-    ['/', '/courses', '/practice', '/ai-tutor', '/community', '/exams', '/progress', '/profile', '/settings', '/admin', '/speaking',
+    ['/', '/courses', '/practice', '/community', '/exams', '/progress', '/profile', '/settings', '/admin', '/speaking',
      '/syllabus/:level', '/lesson/:id', '/vocabulary', '/library', '/book/:idx', '/exam/:id', '/study/:mode'].forEach(function (p) {
       window.Router.on(p, function () { App.render(); });
     });

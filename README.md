@@ -2,7 +2,8 @@
 
 An offline-first Chinese learning web app (HSK 1–5): courses, vocabulary,
 a library of textbooks, and HSK mock exams — with accounts, saved progress,
-and an admin view.
+and an admin view. **Self-learning only — no AI, no external services, no
+internet needed.**
 
 > Made by **Yaseen Zehri** · © 2028
 
@@ -16,7 +17,8 @@ and an admin view.
 - **HSK mock exams** — 92 exam sets (88 with listening audio), answer keys, transcripts
 - **Language & display** — 20 interface languages (with RTL), plus independent
   learning-language, translation, pinyin, and character (simplified/traditional/both) settings
-- **AI tutor** — chat UI with a mock provider (plugs into a real provider later)
+- **Speaking practice** — repeat sentences aloud; scored by the browser's speech
+  recognition where available, or typed comparison as a fallback
 - **Progress dashboard** — XP, streak, words known, weekly chart, achievements
 - **Accounts** — username + password (scrypt), per-user progress, admin dashboard
 
@@ -64,6 +66,7 @@ With the server running:
 ```bash
 node tools/verify-phase23.mjs   # data integrity, auth guards, settings API
 node tools/verify-phase4.mjs    # spaced-repetition engine + study routes
+node tools/verify-phase56.mjs   # community posts API + confirms no AI surface
 node tools/verify-sessions.mjs  # auth + session lifecycle
 ```
 
@@ -77,7 +80,8 @@ node tools/verify-sessions.mjs  # auth + session lifecycle
 ## Status
 
 Built module-by-module from a 130-section master spec. Done: **Phase 1**
-(shell, design system, i18n, providers, router, auth), **Phase 2** (language
-onboarding), **Phase 3** (courses, vocabulary, library, exams), **Phase 4**
-(practice/quiz engine with spaced repetition), plus a collage-matched UI pass.
-Next: real AI provider + RAG, voice, community, admin CMS.
+(shell, design system, i18n, router, auth), **Phase 2** (language onboarding),
+**Phase 3** (courses, vocabulary, library, exams), **Phase 4** (practice/quiz
+engine with spaced repetition), **Phase 5/6** (real community posts backend +
+speaking practice), plus a collage-matched UI pass. The app is fully
+self-contained and works with no network. Next: admin CMS and content tooling.

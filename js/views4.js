@@ -1,6 +1,6 @@
 /* 汉学课堂 — collage-matched views (home hero+wizard, catalog sidebar, video lesson,
-   listening practice, AI tutor chat, progress dashboard, community forum).
-   Reuses window.VOCAB / LIBRARY / EXAMS, Store progress, Settings prefs, Providers. */
+   listening practice, progress dashboard, community forum).
+   Reuses window.VOCAB / LIBRARY / EXAMS, Store progress, Settings prefs. */
 (function () {
   'use strict';
 
@@ -102,7 +102,7 @@
     [
       { ic: '🔤', t: 'Vocabulary', s: '2,501 HSK words', bg: 'var(--sky)', to: '/vocabulary' },
       { ic: '🎧', t: 'Listening', s: 'Audio practice', bg: 'var(--mint)', to: '/practice' },
-      { ic: '🤖', t: 'AI Conversation', s: 'Chat with a tutor', bg: 'var(--lav)', to: '/ai-tutor' },
+      { ic: '🗣️', t: 'Speaking', s: 'Repeat out loud', bg: 'var(--lav)', to: '/speaking' },
       { ic: '✏️', t: 'Grammar', s: 'Structures & drills', bg: 'var(--amber)', to: '/practice' },
       { ic: '💼', t: 'Business Chinese', s: 'Workplace language', bg: 'var(--pink)', to: '/courses' },
     ].forEach(function (x) {
@@ -423,78 +423,6 @@
     mount.appendChild(wrap);
   }
 
-  // ───────────────────────── AI TUTOR ─────────────────────────
-  var TOPICS = [['New Chat', '✨'], ['Daily Conversation', '☕'], ['HSK Speaking', '🎓'], ['Grammar Help', '✏️'], ['Pronunciation', '🔊'], ['Role Play', '🎭']];
-
-  function aiTutor(mount) {
-    bind();
-    var wrap = el('div', 'section');
-    var shell = el('div', 'hx-chat');
-
-    var side = el('aside', 'ui-card');
-    side.appendChild(el('div', 'ui-h3', 'AI Chinese Tutor'));
-    var tg = el('div'); tg.style.marginTop = '10px';
-    TOPICS.forEach(function (tp, i) {
-      var b = el('button', 'hx-side-item' + (i === 0 ? ' active' : ''));
-      b.appendChild(el('span', 'ic', tp[1]));
-      b.appendChild(el('span', null, tp[0]));
-      b.addEventListener('click', function () {
-        U.qa('.hx-side-item', side).forEach(function (x) { x.classList.remove('active'); });
-        b.classList.add('active');
-        send(tp[0]);
-      });
-      tg.appendChild(b);
-    });
-    side.appendChild(tg);
-    var cfgNote = el('div', 'ui-stat-sub', window.Providers.isDemo() ? '🧪 Demo mode — mock replies.' : 'Connected.');
-    cfgNote.style.marginTop = '12px';
-    side.appendChild(cfgNote);
-    shell.appendChild(side);
-
-    var chat = el('div', 'hx-chat-main');
-    chat.appendChild(el('div', 'hx-chat-head', '🤖 AI Chinese Tutor'));
-    var body = el('div', 'hx-chat-body');
-    chat.appendChild(body);
-    var foot = el('div', 'hx-chat-foot');
-    var input = el('input'); input.type = 'text'; input.placeholder = 'Type in English or Chinese…';
-    var sendBtn = el('button', 'ui-btn ui-btn-primary', 'Send');
-    foot.appendChild(input); foot.appendChild(sendBtn);
-    chat.appendChild(foot);
-    shell.appendChild(chat);
-
-    function bubble(who, text, meta) {
-      var m = el('div', 'hx-msg ' + (who === 'me' ? 'me' : 'bot'));
-      if (meta) {
-        m.appendChild(el('div', 'cn', esc(meta.cn)));
-        if (meta.pin) m.appendChild(el('div', 'pin', esc(meta.pin)));
-        if (meta.tr) m.appendChild(el('div', 'tr', esc(meta.tr)));
-      } else m.appendChild(el('div', 'tr', esc(text)));
-      body.appendChild(m); body.scrollTop = body.scrollHeight;
-    }
-    bubble('bot', '你好！我是你的中文老师。Ask me anything — try a topic on the left.');
-    function think(text) {
-      var i = el('div', 'hx-msg bot'); i.appendChild(el('div', 'tr', '…'));
-      body.appendChild(i); body.scrollTop = body.scrollHeight; return i;
-    }
-    function send(text) {
-      text = String(text || input.value || '').trim();
-      if (!text) return;
-      bubble('me', text); input.value = '';
-      var pending = think();
-      window.Tutor.answer(text).then(function (a) {
-        body.removeChild(pending);
-        if (a.kind === 'none') { bubble('bot', a.tr); return; }
-        if (a.kind === 'grammar') { bubble('bot', null, { cn: a.cn, tr: a.tr + (a.ex ? '  e.g. ' + a.ex : '') }); return; }
-        bubble('bot', null, { cn: a.cn, pin: a.pin, tr: a.tr });
-      }).catch(function () { body.removeChild(pending); bubble('bot', 'Offline tutor unavailable.'); });
-    }
-    sendBtn.addEventListener('click', function () { send(); });
-    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
-
-    wrap.appendChild(shell);
-    mount.appendChild(wrap);
-  }
-
   // ───────────────────────── PROGRESS DASHBOARD ─────────────────────────
   function progressView(mount) {
     bind();
@@ -509,7 +437,6 @@
     info.appendChild(el('div', 'ui-h2', esc((S_ && (S_.displayName || S_.username)) || 'Guest')));
     info.appendChild(el('div', 'ui-muted', S_ ? ('@' + esc(S_.username) + ' · ' + esc(levelName(4)) + ' (HSK 4)') : 'Sign in to track progress'));
     head.appendChild(info);
-    if (window.Providers.isDemo()) head.appendChild(U.badge('Demo', ''));
     wrap.appendChild(head);
 
     var g = el('div', 'ui-grid cols-4'); g.style.marginTop = '16px';
@@ -633,5 +560,5 @@
   }
 
   window.Views4 = { home: home, courses: courses, syllabus: syllabus, lesson: lesson,
-    practice: practice, aiTutor: aiTutor, progress: progressView, community: community };
+    practice: practice, progress: progressView, community: community };
 })();

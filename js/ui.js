@@ -110,9 +110,6 @@
       if (retry) d.appendChild(UI.button('Retry', { variant: 'primary', onClick: retry }));
       return d;
     },
-    demoBanner: function (msg) {
-      return el('div', 'ui-demo-banner', '🧪 ' + esc(msg || 'Demo mode — no AI provider configured.'));
-    },
 
     sectionHead: function (title, action) {
       var h = el('div', 'ui-section-head');

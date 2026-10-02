@@ -1,4 +1,4 @@
-// 汉学课堂 — Phase 5/6 smoke test: RAG tutor + community posts API.
+// 汉学课堂 — Phase 5/6 smoke test: community posts API (self-contained, no AI).
 //   node tools/verify-phase56.mjs   (server must be running on 127.0.0.1:8091)
 import fs from 'fs';
 import path from 'path';
@@ -22,29 +22,19 @@ async function req(method, p, body, token) {
   return { status: r.status, ok: r.ok, j };
 }
 
-// ── 1. tutor (offline RAG) in a sandbox ──
-console.log('\n[1] RAG tutor');
-const win = {};
-function load(file) { new Function('window', 'document', fs.readFileSync(file, 'utf8'))(win, { documentElement: {}, dispatchEvent() {}, addEventListener() {} }); }
-win.I18N = { t: (k) => k, lang: 'en' };
-win.Providers = { knowledge: { search: (q, o) => {
-  const vocab = win.VOCAB || {};
-  const out = [];
-  const s = String(q).toLowerCase();
-  Object.keys(vocab).forEach((l) => (vocab[l] || []).forEach((w) => {
-    if (out.length >= (o.limit || 3)) return;
-    if ((w.s + ' ' + (w.p || '') + ' ' + w.d).toLowerCase().includes(s)) out.push({ hanzi: w.s, pinyin: w.p, meaning: w.d, hskLevel: Number(l) });
-  }));
-  return Promise.resolve(out.slice(0, o.limit || 3));
-} } };
-load(path.join('js', 'data.js'));
-load(path.join('js', 'tutor.js'));
-const a1 = await win.Tutor.answer('我');
-(a1.kind === 'vocab' && a1.cn.includes('我')) ? ok('tutor answers a vocab query with context') : bad('vocab answer', JSON.stringify(a1));
-const a2 = await win.Tutor.answer('how do I use 把');
-(a2.kind === 'grammar') ? ok('tutor recognizes grammar 把') : bad('grammar answer', JSON.stringify(a2));
-const a3 = await win.Tutor.answer('zzzz not a word');
-(a3.kind === 'none' && a3.offline) ? ok('tutor falls back gracefully offline') : bad('fallback', JSON.stringify(a3));
+// ── 1. no AI / offline study surface ──
+console.log('\n[1] offline study surface');
+const offline = [
+  ['js/providers.js', (s) => !/[\u4e00-\u9fff]?AI provider/i.test(s) && !/MockAIProvider/.test(s)],
+  ['index.html', (s) => !/js\/tutor\.js/.test(s) && !/ai-tutor/.test(s)],
+  ['js/app.js', (s) => !/aiTutor|ai-tutor/.test(s)],
+  ['js/views4.js', (s) => !/Tutor\.answer|window\.Tutor/.test(s)],
+];
+for (const [f, check] of offline) {
+  const s = fs.readFileSync(path.join(process.cwd(), f), 'utf8');
+  check(s) ? ok('no AI references in ' + f) : bad('AI reference still in ' + f);
+}
+(fs.existsSync(path.join(process.cwd(), 'js', 'tutor.js'))) ? bad('js/tutor.js still exists') : ok('js/tutor.js removed');
 
 // ── 2. community guards ──
 console.log('\n[2] community guards');
