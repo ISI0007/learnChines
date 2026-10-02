@@ -1,0 +1,214 @@
+/* 汉学课堂 — Phase 1 views. Home shell + honest placeholders for later phases.
+   Spec §12 (home), §101 (no dead UI), §123 (phases). All strings go through I18N. */
+(function () {
+  'use strict';
+
+  var t = function (k, v) { return window.I18N ? window.I18N.t(k, v) : k; };
+  var el = function (tag, cls, html) { return window.UI.el(tag, cls, html); };
+
+  function levelInfo(l) {
+    return { 1: 6, 2: 4, 3: 3, 4: 2, 5: 1 }[l] || 1; // placeholder lesson counts until course data exists
+  }
+  function vocabCount(l) { return ((window.VOCAB || {})[l] || []).length; }
+
+  // A card that honestly states which phase delivers the feature (Spec §101).
+  function phaseCard(title, desc, phase, icon) {
+    var c = window.UI.card([
+      el('div', 'ui-row', ''),
+    ]);
+    c.innerHTML = '';
+    c.appendChild(el('div', null, '<div style="font-size:26px">' + (icon || '🧩') + '</div>'));
+    c.appendChild(el('div', 'ui-h3', window.UI.esc(title)));
+    c.appendChild(el('p', 'ui-muted', window.UI.esc(desc)));
+    var row = el('div', 'ui-row'); row.style.marginTop = '10px';
+    row.appendChild(window.UI.badge(phase, 'blue'));
+    c.appendChild(row);
+    return c;
+  }
+
+  var Views = {
+    home: function (mount) {
+      var U = window.UI;
+
+      if (window.Providers.isDemo()) mount.appendChild(U.demoBanner(t('msg.demoMode')));
+
+      // Hero
+      var hero = el('section', 'hero');
+      hero.appendChild(el('h1', null, window.UI.esc(t('home.hero.title'))));
+      hero.appendChild(el('p', 'sub', window.UI.esc(t('home.hero.sub'))));
+      var actions = el('div', 'hero-actions');
+      actions.appendChild(U.button(t('home.startLearning'), { variant: 'primary', onClick: function () { window.Router.go('/courses'); } }));
+      actions.appendChild(U.button(t('home.takeTest'), { onClick: function () { window.Router.go('/exams'); } }));
+      hero.appendChild(actions);
+      mount.appendChild(hero);
+
+      // HSK level selector (Spec §12)
+      var lvl = el('section', 'section');
+      lvl.appendChild(U.sectionHead(t('home.chooseLevel')));
+      var grid = el('div', 'ui-grid cols-3');
+      [1, 2, 3, 4, 5, 6].forEach(function (l) {
+        var c = U.card([]);
+        c.appendChild(el('div', 'ui-row', '<span class="ui-badge blue">HSK ' + l + '</span><span class="ui-pill">' + window.UI.esc(t('level.' + l)) + '</span>'));
+        var big = el('div', 'ui-stat-num', String(vocabCount(l)));
+        big.style.marginTop = '10px';
+        c.appendChild(big);
+        c.appendChild(el('div', 'ui-stat-sub', window.UI.esc(t('common.words')) + (l >= 5 ? ' · ' + window.UI.esc(t('common.lessons')) + ' ' + levelInfo(l) : '')));
+        var cont = el('div'); cont.style.marginTop = '14px';
+        cont.appendChild(U.button(t('common.start'), { variant: 'primary', onClick: function () { window.Router.go('/courses'); } }));
+        c.appendChild(cont);
+        grid.appendChild(c);
+      });
+      lvl.appendChild(grid);
+      mount.appendChild(lvl);
+
+      // Daily challenge (Spec §12) — uses a real word from the dataset
+      var w = (((window.VOCAB || {})[3] || [])[12]) || { s: '坚持', p: 'jiānchí', d: 'to persist' };
+      var daily = el('section', 'section');
+      daily.appendChild(U.sectionHead(t('home.daily.title')));
+      var dc = U.card([]);
+      dc.appendChild(el('div', 'ui-muted', window.UI.esc(t('home.daily.word'))));
+      dc.appendChild(el('div', null, '<div style="font-size:40px;font-weight:800">' + window.UI.esc(w.s) + '</div><div style="color:var(--primary);font-size:17px">' + window.UI.esc(w.p || '') + '</div><div class="ui-muted">' + window.UI.esc(w.d) + '</div>'));
+      var drow = el('div', 'ui-row'); drow.style.marginTop = '14px';
+      drow.appendChild(U.button(t('home.daily.cta'), { variant: 'primary', onClick: function () { window.Router.go('/practice'); } }));
+      dc.appendChild(drow);
+      daily.appendChild(dc);
+      mount.appendChild(daily);
+
+      // What's built so far — honest status grid
+      var plan = el('section', 'section');
+      plan.appendChild(U.sectionHead('Platform roadmap'));
+      var pg = el('div', 'ui-grid cols-4');
+      pg.appendChild(phaseCard('Courses & lessons', 'Structured HSK courses, enrollment, progress.', 'Phase 3', '📚'));
+      pg.appendChild(phaseCard('Practice center', 'Listening, speaking, reading, writing, review.', 'Phase 4', '🎧'));
+      pg.appendChild(phaseCard('AI Tutor', 'Multilingual tutor with context + RAG.', 'Phase 5–7', '🤖'));
+      pg.appendChild(phaseCard('Community', 'Discussion, language exchange, study groups.', 'Phase 10', '💬'));
+      plan.appendChild(pg);
+      mount.appendChild(plan);
+    },
+
+    // Phase 2 delivers learning; these views are honest placeholders until then.
+    placeholder: function (mount, opts) {
+      var U = window.UI;
+      var wrap = el('div', 'section');
+      wrap.appendChild(el('h1', 'ui-h1', window.UI.esc(opts.title)));
+      if (opts.sub) wrap.appendChild(el('p', 'ui-muted', window.UI.esc(opts.sub)));
+      if (window.Providers.isDemo()) wrap.appendChild(U.demoBanner(t('msg.demoMode')));
+      var c = U.card([]);
+      c.style.marginTop = '16px';
+      c.appendChild(el('div', null, '<div style="font-size:30px">' + (opts.icon || '🧩') + '</div>'));
+      c.appendChild(el('div', 'ui-h3', 'Planned for ' + window.UI.esc(opts.phase)));
+      c.appendChild(el('p', 'ui-muted', window.UI.esc(opts.note || 'This screen is part of the specification and will be built in a later phase.')));
+      var row = el('div', 'ui-row'); row.style.marginTop = '12px';
+      row.appendChild(U.button('Back to Home', { variant: 'primary', onClick: function () { window.Router.go('/'); } }));
+      c.appendChild(row);
+      wrap.appendChild(c);
+      mount.appendChild(wrap);
+    },
+
+    courses: function (mount) {
+      Views.placeholder(mount, { title: t('nav.courses'), phase: 'Phase 3 — Learning Core', icon: '📚', note: 'Courses, lessons, enrollment, and progress arrive in Phase 3.' });
+    },
+    practice: function (mount) {
+      Views.placeholder(mount, { title: t('nav.practice'), phase: 'Phase 4 — Practice', icon: '🎧', note: 'Listening, speaking, writing, reading, quizzes, and spaced review arrive in Phase 4.' });
+    },
+    aiTutor: function (mount) {
+      Views.placeholder(mount, { title: t('nav.aiTutor'), phase: 'Phase 5–7 — AI', icon: '🤖', note: 'The AI tutor needs a provider. A mock provider is in place so this screen runs in demo mode.' });
+    },
+    community: function (mount) {
+      Views.placeholder(mount, { title: t('nav.community'), phase: 'Phase 10 — Community', icon: '💬' });
+    },
+    exams: function (mount) {
+      Views.placeholder(mount, { title: 'HSK Mock Tests', phase: 'Phase 4 — Exams', icon: '📝' });
+    },
+    progress: function (mount) {
+      var U = window.UI;
+      var S = window.Store.state;
+      var wrap = el('div', 'section');
+      wrap.appendChild(el('h1', 'ui-h1', t('nav.progress')));
+      var p = S.progress;
+      var g = el('div', 'ui-grid cols-4'); g.style.marginTop = '16px';
+      g.appendChild(U.stat(String(p.xp || 0), t('progress.xp'), 'earned', 'blue'));
+      g.appendChild(U.stat(String((p.streak && p.streak.current) || 0), t('progress.streak'), 'longest ' + ((p.streak && p.streak.longest) || 0), 'amber'));
+      g.appendChild(U.stat(String(Object.keys(p.known || {}).length), t('progress.wordsKnown'), '', 'green'));
+      g.appendChild(U.stat(String((p.quiz && p.quiz.taken) || 0), t('progress.quizzes'), ((p.quiz && p.quiz.correct) || 0) + ' correct', 'red'));
+      wrap.appendChild(g);
+      mount.appendChild(wrap);
+    },
+    profile: function (mount) {
+      var U = window.UI, S = window.Store.state;
+      var wrap = el('div', 'section');
+      wrap.appendChild(el('h1', 'ui-h1', t('nav.profile')));
+      if (!S.user) { wrap.appendChild(U.empty('Not signed in', 'Sign in to view your profile.')); mount.appendChild(wrap); return; }
+      var c = U.card([]); c.style.marginTop = '16px';
+      c.appendChild(el('div', 'ui-row', ''));
+      c.innerHTML = '';
+      var row = el('div', 'ui-row');
+      row.appendChild(U.avatar(S.user.displayName || S.user.username, 'lg'));
+      var info = el('div');
+      info.appendChild(el('div', 'ui-h3', window.UI.esc(S.user.displayName || S.user.username)));
+      info.appendChild(el('div', 'ui-muted', '@' + window.UI.esc(S.user.username) + ' · ' + (S.user.role === 'admin' ? 'Administrator' : 'Learner')));
+      row.appendChild(info);
+      c.appendChild(row);
+      wrap.appendChild(c);
+      mount.appendChild(wrap);
+    },
+    settings: function (mount) {
+      var U = window.UI, S = window.Store.state;
+      var wrap = el('div', 'section');
+      wrap.appendChild(el('h1', 'ui-h1', t('nav.settings')));
+      var c = U.card([]); c.style.marginTop = '16px';
+      c.appendChild(el('div', 'ui-h3', 'Language'));
+      var row = el('div', 'ui-row'); row.style.marginTop = '8px';
+      row.appendChild(el('span', 'ui-muted', 'Interface language'));
+      var sel = el('select', 'lang-select');
+      Object.keys(window.I18N.locales).forEach(function (code) {
+        var o = el('option', null, window.I18N.locales[code].name); o.value = code;
+        if (code === window.I18N.lang) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.addEventListener('change', function () { window.I18N.set(sel.value); window.App.refreshChrome(); window.App.render(); });
+      row.appendChild(sel);
+      c.appendChild(row);
+      wrap.appendChild(c);
+      mount.appendChild(wrap);
+    },
+    admin: function (mount) {
+      var U = window.UI, S = window.Store.state;
+      var wrap = el('div', 'section');
+      wrap.appendChild(el('h1', 'ui-h1', t('nav.admin')));
+      if (!(S.user && S.user.role === 'admin')) { wrap.appendChild(U.empty('Admins only', 'You do not have access to this page.')); mount.appendChild(wrap); return; }
+      var box = el('div'); box.id = 'adminBox'; box.style.marginTop = '16px';
+      box.appendChild(U.loading(4));
+      wrap.appendChild(box);
+      mount.appendChild(wrap);
+      window.API.adminUsers().then(function (r) {
+        U.clear(box);
+        if (!r.ok || !r.success) { box.appendChild(U.error('Could not load users')); return; }
+        var users = r.data.users || [];
+        var g = el('div', 'ui-grid cols-4');
+        g.appendChild(U.stat(String(users.length), 'Accounts', 'total', 'blue'));
+        g.appendChild(U.stat(String(users.filter(function (u) { return u.role !== 'admin'; }).length), 'Learners', '', 'green'));
+        g.appendChild(U.stat(String(users.reduce(function (a, u) { return a + (u.xp || 0); }, 0)), 'Total XP', '', 'amber'));
+        box.appendChild(g);
+        var card = U.card([]); card.style.marginTop = '16px';
+        var tbl = el('table'); tbl.style.cssText = 'width:100%;border-collapse:collapse;font-size:13.5px';
+        var head = el('tr');
+        ['User', 'Role', 'Words', 'XP', 'Streak', 'Quizzes', 'Study days'].forEach(function (h) { var th = el('th', null, h); th.style.cssText = 'text-align:left;color:var(--text-2);padding:9px;border-bottom:1px solid var(--border)'; head.appendChild(th); });
+        var thead = el('thead'); thead.appendChild(head); tbl.appendChild(thead);
+        var tb = el('tbody');
+        users.forEach(function (u) {
+          var tr = el('tr');
+          [u.displayName || u.username, u.role, u.known, u.xp, u.streak, u.quizzes, u.studyDays].forEach(function (v) {
+            var td = el('td', null, window.UI.esc(String(v)));
+            td.style.cssText = 'padding:9px;border-bottom:1px solid var(--border)';
+            tr.appendChild(td);
+          });
+          tb.appendChild(tr);
+        });
+        tbl.appendChild(tb); card.appendChild(tbl); box.appendChild(card);
+      }).catch(function () { U.clear(box); box.appendChild(U.error('Could not load users')); });
+    },
+  };
+
+  window.Views = Views;
+})();

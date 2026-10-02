@@ -1,0 +1,22 @@
+# runtime / data (secrets + generated)
+server/data/
+*.log
+*.tmp
+
+# backups / archival
+_backup-v1/
+_retired/
+_backup/
+
+# this machine's private mirrors of the source library
+library/
+_tmp/
+
+# OS cruft
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# node (if ever added)
+node_modules/
+.env
