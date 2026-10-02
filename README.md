@@ -23,6 +23,10 @@ internet needed.**
 - **Admin CMS** — analytics (active users, study activity, words by level), user
   management (search/filter, suspend/restore, roles, delete), content inventory,
   community moderation (report queue, remove posts/comments), and session viewer
+- **Translations** — admin Translation CMS (per-language vocab meanings, draft/reviewed/
+  published) with learner-side localized display
+- **Security** — active-session management (revoke a device / sign out others) and
+  TOTP two-factor authentication (authenticator app + one-time recovery codes)
 - **Accounts** — username + password (scrypt), per-user progress, admin dashboard
 
 ## Run it
@@ -71,6 +75,8 @@ node tools/verify-phase23.mjs   # data integrity, auth guards, settings API
 node tools/verify-phase4.mjs    # spaced-repetition engine + study routes
 node tools/verify-phase56.mjs   # community posts API + confirms no AI surface
 node tools/verify-admin.mjs     # admin CMS: analytics, user mgmt, moderation
+node tools/verify-translations.mjs  # translation CMS: stats, search, publish flow
+node tools/verify-auth.mjs      # sessions, TOTP 2FA, recovery codes, providers
 node tools/verify-sessions.mjs  # auth + session lifecycle
 ```
 
