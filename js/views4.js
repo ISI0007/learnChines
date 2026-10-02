@@ -481,21 +481,12 @@
       if (!text) return;
       bubble('me', text); input.value = '';
       var pending = think();
-      (window.Providers.knowledge.search(text, { limit: 1 })).then(function (hits) {
-        var hit = hits && hits[0];
-        window.Providers.ai.chat({ messages: [{ role: 'user', content: text }], language: (window.I18N && window.I18N.lang) || 'en' }).then(function () {
-          body.removeChild(pending);
-          if (hit) {
-            bubble('bot', null, {
-              cn: '我们来看这个词：' + hit.hanzi,
-              pin: hit.pinyin || '',
-              tr: (hit.meaning || '') + ' (HSK ' + (hit.hskLevel || '') + ')',
-            });
-          } else {
-            bubble('bot', 'Demo reply — no AI provider is configured. I found no matching vocabulary for "' + text + '".');
-          }
-        });
-      }).catch(function () { body.removeChild(pending); bubble('bot', 'Demo mode: no AI provider configured.'); });
+      window.Tutor.answer(text).then(function (a) {
+        body.removeChild(pending);
+        if (a.kind === 'none') { bubble('bot', a.tr); return; }
+        if (a.kind === 'grammar') { bubble('bot', null, { cn: a.cn, tr: a.tr + (a.ex ? '  e.g. ' + a.ex : '') }); return; }
+        bubble('bot', null, { cn: a.cn, pin: a.pin, tr: a.tr });
+      }).catch(function () { body.removeChild(pending); bubble('bot', 'Offline tutor unavailable.'); });
     }
     sendBtn.addEventListener('click', function () { send(); });
     input.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });

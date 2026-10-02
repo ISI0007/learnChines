@@ -166,6 +166,82 @@ function putSettings(ctx) {
   ok(ctx.res, { settings: ctx.user.settings });
 }
 
+// ── community (Phase 6) ──
+const TOPIC_TAGS = ['hsk4', 'grammar', 'tones', 'listening', 'pinyin', 'speaking', 'vocab', 'exam', 'culture', 'general'];
+function publicPost(p) {
+  return {
+    id: p.id, title: p.title, body: p.body, tag: p.tag,
+    author: p.authorName, authorId: p.authorId, createdAt: p.createdAt,
+    likes: (p.likes || []).length, comments: (p.comments || []).length,
+  };
+}
+function listPosts(ctx) {
+  const tag = ctx.query.get('tag');
+  const sort = ctx.query.get('sort') || 'new';
+  let posts = (db.state.posts || []).slice();
+  if (tag) posts = posts.filter((p) => p.tag === tag);
+  if (sort === 'top') posts.sort((a, b) => (b.likes || []).length - (a.likes || []).length);
+  else posts.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  ok(ctx.res, { posts: posts.slice(0, 100).map(publicPost), total: posts.length });
+}
+function createPost(ctx) {
+  const b = ctx.body || {};
+  const title = String(b.title || '').trim().slice(0, 120);
+  const body = String(b.body || '').trim().slice(0, 4000);
+  if (title.length < 3) return fail(ctx.res, 400, 'INVALID_TITLE', 'Title must be at least 3 characters');
+  if (!body) return fail(ctx.res, 400, 'INVALID_BODY', 'Post body is required');
+  const tag = TOPIC_TAGS.includes(String(b.tag)) ? String(b.tag) : 'general';
+  const post = {
+    id: db.newId(), title, body, tag,
+    authorId: ctx.user.id, authorName: ctx.user.displayName || ctx.user.username,
+    createdAt: new Date().toISOString(), likes: [], comments: [],
+  };
+  db.state.posts.unshift(post);
+  if (db.state.posts.length > 500) db.state.posts = db.state.posts.slice(0, 500);
+  db.savePosts();
+  pushActivity(ctx.user, 'post', 'Posted: ' + title);
+  db.saveUsers();
+  created(ctx.res, { post: publicPost(post) });
+}
+function getPost(ctx) {
+  const p = (db.state.posts || []).find((x) => x.id === ctx.params.id);
+  if (!p) return fail(ctx.res, 404, 'NOT_FOUND', 'Post not found');
+  ok(ctx.res, { post: Object.assign(publicPost(p), {
+    comments: (p.comments || []).map((c) => ({ id: c.id, body: c.body, author: c.authorName, createdAt: c.createdAt })),
+    liked: ctx.user ? (p.likes || []).includes(ctx.user.id) : false,
+  }) });
+}
+function likePost(ctx) {
+  const p = (db.state.posts || []).find((x) => x.id === ctx.params.id);
+  if (!p) return fail(ctx.res, 404, 'NOT_FOUND', 'Post not found');
+  if (!Array.isArray(p.likes)) p.likes = [];
+  const i = p.likes.indexOf(ctx.user.id);
+  if (i === -1) p.likes.push(ctx.user.id); else p.likes.splice(i, 1);
+  db.savePosts();
+  ok(ctx.res, { likes: p.likes.length, liked: i === -1 });
+}
+function commentPost(ctx) {
+  const p = (db.state.posts || []).find((x) => x.id === ctx.params.id);
+  if (!p) return fail(ctx.res, 404, 'NOT_FOUND', 'Post not found');
+  const body = String((ctx.body && ctx.body.body) || '').trim().slice(0, 2000);
+  if (!body) return fail(ctx.res, 400, 'INVALID_COMMENT', 'Comment body is required');
+  if (!Array.isArray(p.comments)) p.comments = [];
+  const c = { id: db.newId(), body, authorId: ctx.user.id, authorName: ctx.user.displayName || ctx.user.username, createdAt: new Date().toISOString() };
+  p.comments.push(c);
+  if (p.comments.length > 200) p.comments = p.comments.slice(-200);
+  db.savePosts();
+  ok(ctx.res, { comment: { id: c.id, body: c.body, author: c.authorName, createdAt: c.createdAt } });
+}
+function deletePost(ctx) {
+  const i = (db.state.posts || []).findIndex((x) => x.id === ctx.params.id);
+  if (i === -1) return fail(ctx.res, 404, 'NOT_FOUND', 'Post not found');
+  const p = db.state.posts[i];
+  if (p.authorId !== ctx.user.id && ctx.user.role !== 'admin') return fail(ctx.res, 403, 'FORBIDDEN', 'You can only delete your own posts');
+  db.state.posts.splice(i, 1);
+  db.savePosts();
+  ok(ctx.res, { ok: true });
+}
+
 function getProgress(ctx) { ok(ctx.res, { progress: ensureProgress(ctx.user) }); }
 
 function putProgress(ctx) {
@@ -252,4 +328,4 @@ function adminSessions(ctx) {
   ok(ctx.res, { sessions });
 }
 
-module.exports = { register, login, logout, me, getProgress, putProgress, postActivity, changePassword, getSettings, putSettings, adminUsers, adminUser, adminSessions, fail, ok };
+module.exports = { register, login, logout, me, getProgress, putProgress, postActivity, changePassword, getSettings, putSettings, listPosts, createPost, getPost, likePost, commentPost, deletePost, adminUsers, adminUser, adminSessions, fail, ok };

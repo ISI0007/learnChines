@@ -26,6 +26,13 @@
     return c;
   }
 
+  function timeAgoShort(iso) {
+    var d = (Date.now() - new Date(iso).getTime()) / 1000;
+    if (d < 3600) return Math.max(1, Math.floor(d / 60)) + 'm ago';
+    if (d < 86400) return Math.floor(d / 3600) + 'h ago';
+    return Math.floor(d / 86400) + 'd ago';
+  }
+
   var Views = {
     home: function (mount) {
       var U = window.UI;
@@ -238,6 +245,29 @@
           tb.appendChild(tr);
         });
         tbl.appendChild(tb); card.appendChild(tbl); box.appendChild(card);
+
+        // active sessions
+        window.API.adminSessions().then(function (sr) {
+          if (!sr.ok || !sr.success) return;
+          var sess = sr.data.sessions || [];
+          var sc = U.card([]); sc.style.marginTop = '16px';
+          sc.appendChild(el('div', 'ui-h3', 'Active sessions (' + sess.filter(function (s) { return s.active; }).length + ')'));
+          var st = el('table'); st.style.cssText = 'width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px';
+          var sh = el('tr');
+          ['User', 'Role', 'Last seen', 'Days left'].forEach(function (h) { var th = el('th', null, h); th.style.cssText = 'text-align:left;color:var(--text-2);padding:9px;border-bottom:1px solid var(--border)'; sh.appendChild(th); });
+          var shd = el('thead'); shd.appendChild(sh); st.appendChild(shd);
+          var sb = el('tbody');
+          sess.slice(0, 30).forEach(function (s) {
+            var tr = el('tr');
+            [s.displayName || s.username, s.role, s.lastSeen ? timeAgoShort(s.lastSeen) : '—', s.active ? s.daysLeft + 'd' : 'expired'].forEach(function (v) {
+              var td = el('td', null, window.UI.esc(String(v)));
+              td.style.cssText = 'padding:9px;border-bottom:1px solid var(--border)';
+              tr.appendChild(td);
+            });
+            sb.appendChild(tr);
+          });
+          st.appendChild(sb); sc.appendChild(st); box.appendChild(sc);
+        }).catch(function () {});
       }).catch(function () { U.clear(box); box.appendChild(U.error('Could not load users')); });
     },
   };

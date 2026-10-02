@@ -7,8 +7,9 @@ const { DATA_DIR } = require('../config');
 
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SESS_FILE = path.join(DATA_DIR, 'sessions.json');
+const POSTS_FILE = path.join(DATA_DIR, 'posts.json');
 
-const state = { users: [], sessions: {} };
+const state = { users: [], sessions: {}, posts: [] };
 
 function ensureDir() { fs.mkdirSync(DATA_DIR, { recursive: true }); }
 
@@ -23,6 +24,8 @@ function writeJson(file, obj) {
 }
 function saveUsers() { writeJson(USERS_FILE, { users: state.users }); }
 function saveSessions() { writeJson(SESS_FILE, { sessions: state.sessions }); }
+function savePosts() { writeJson(POSTS_FILE, { posts: state.posts }); }
+function newId() { return crypto.randomBytes(8).toString('hex'); }
 
 function defaultSettings() {
   return {
@@ -55,6 +58,8 @@ function load() {
   state.users = Array.isArray(u.users) ? u.users : [];
   const s = readJson(SESS_FILE, { sessions: {} });
   state.sessions = (s && s.sessions) || {};
+  const pj = readJson(POSTS_FILE, { posts: [] });
+  state.posts = Array.isArray(pj.posts) ? pj.posts : [];
   const now = Date.now();
   let changed = false;
   for (const k of Object.keys(state.sessions)) {
@@ -89,6 +94,6 @@ function createUser(opts) {
 }
 
 module.exports = {
-  state, load, saveUsers, saveSessions,
+  state, load, saveUsers, saveSessions, savePosts, newId,
   findUserByName, findUserById, createUser, defaultProgress, defaultSettings, ensureDir,
 };

@@ -82,7 +82,7 @@
       var cur = window.Router.current || { name: '/', params: {} };
       var name = cur.name || '/', params = cur.params || {};
       var page = window.UI.el('div', 'page');
-      var V = window.Views, V3 = window.Views3, V4 = window.Views4, V5 = window.Views5;
+      var V = window.Views, V3 = window.Views3, V4 = window.Views4, V5 = window.Views5, V6 = window.Views6;
       var fn =
         name === '/' ? function () { V4.home(page); } :
         name === '/courses' ? function () { V4.courses(page); } :
@@ -95,8 +95,9 @@
         name === '/exam/:id' ? function () { V3.exam(page, params.id); } :
         name === '/practice' ? function () { V5.practice(page); } :
         name === '/study/:mode' ? function () { V5.study(page, params.mode); } :
+        name === '/speaking' ? function () { V6.speaking(page); } :
         name === '/ai-tutor' ? function () { V4.aiTutor(page); } :
-        name === '/community' ? function () { V4.community(page); } :
+        name === '/community' ? function () { V6.community(page); } :
         name === '/progress' ? function () { V4.progress(page); } :
         name === '/profile' ? function () { V.profile(page); } :
         name === '/settings' ? function () { V.settings(page); } :
@@ -140,7 +141,7 @@
     App.bind();
 
     // routes (hash-based)
-    ['/', '/courses', '/practice', '/ai-tutor', '/community', '/exams', '/progress', '/profile', '/settings', '/admin',
+    ['/', '/courses', '/practice', '/ai-tutor', '/community', '/exams', '/progress', '/profile', '/settings', '/admin', '/speaking',
      '/syllabus/:level', '/lesson/:id', '/vocabulary', '/library', '/book/:idx', '/exam/:id', '/study/:mode'].forEach(function (p) {
       window.Router.on(p, function () { App.render(); });
     });

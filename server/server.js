@@ -114,7 +114,7 @@ function serveStatic(req, res, urlPath) {
 }
 
 // ── routing ──
-const AUTH_REQUIRED = new Set(['me', 'getProgress', 'putProgress', 'postActivity', 'changePassword', 'getSettings', 'putSettings', 'adminUsers', 'adminUser', 'adminSessions']);
+const AUTH_REQUIRED = new Set(['me', 'getProgress', 'putProgress', 'postActivity', 'changePassword', 'getSettings', 'putSettings', 'createPost', 'likePost', 'commentPost', 'deletePost', 'adminUsers', 'adminUser', 'adminSessions']);
 
 async function handleApi(req, res, url) {
   const p = url.pathname;
@@ -152,11 +152,20 @@ async function handleApi(req, res, url) {
   else if (p === '/api/change-password' && method === 'POST') route = 'changePassword';
   else if (p === '/api/settings' && method === 'GET') route = 'getSettings';
   else if (p === '/api/settings' && method === 'PUT') route = 'putSettings';
+  else if (p === '/api/posts' && method === 'GET') route = 'listPosts';
+  else if (p === '/api/posts' && method === 'POST') route = 'createPost';
   else if (p === '/api/admin/users' && method === 'GET') route = 'adminUsers';
   else if (p === '/api/admin/sessions' && method === 'GET') route = 'adminSessions';
   else {
-    const m = /^\/api\/admin\/users\/([A-Za-z0-9-]{1,64})$/.exec(p);
-    if (m && method === 'GET') { route = 'adminUser'; ctx.params.id = m[1]; }
+    let pm = /^\/api\/posts\/([a-f0-9]{1,32})$/.exec(p);
+    if (pm && method === 'GET') { route = 'getPost'; ctx.params.id = pm[1]; }
+    else if (pm && method === 'DELETE') { route = 'deletePost'; ctx.params.id = pm[1]; }
+    else if ((pm = /^\/api\/posts\/([a-f0-9]{1,32})\/like$/.exec(p)) && method === 'POST') { route = 'likePost'; ctx.params.id = pm[1]; }
+    else if ((pm = /^\/api\/posts\/([a-f0-9]{1,32})\/comments$/.exec(p)) && method === 'POST') { route = 'commentPost'; ctx.params.id = pm[1]; }
+    else {
+      const m = /^\/api\/admin\/users\/([A-Za-z0-9-]{1,64})$/.exec(p);
+      if (m && method === 'GET') { route = 'adminUser'; ctx.params.id = m[1]; }
+    }
   }
 
   if (!route) return void api.fail(res, 404, 'NO_ROUTE', 'Unknown endpoint');

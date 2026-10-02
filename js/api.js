@@ -44,6 +44,14 @@
     putProgress: function (progress) { return request('PUT', '/api/progress', { progress: progress }); },
     activity: function (type, detail) { return request('POST', '/api/activity', { type: type, detail: detail }); },
 
+    // community (Phase 6)
+    posts: function (tag, sort) { var qs = []; if (tag) qs.push('tag=' + encodeURIComponent(tag)); if (sort) qs.push('sort=' + encodeURIComponent(sort)); return request('GET', '/api/posts' + (qs.length ? '?' + qs.join('&') : '')); },
+    post: function (id) { return request('GET', '/api/posts/' + encodeURIComponent(id)); },
+    createPost: function (title, body, tag) { return request('POST', '/api/posts', { title: title, body: body, tag: tag }); },
+    likePost: function (id) { return request('POST', '/api/posts/' + encodeURIComponent(id) + '/like'); },
+    commentPost: function (id, body) { return request('POST', '/api/posts/' + encodeURIComponent(id) + '/comments', { body: body }); },
+    deletePost: function (id) { return request('DELETE', '/api/posts/' + encodeURIComponent(id)); },
+
     // settings (Phase 2)
     getSettings: function () { return request('GET', '/api/settings'); },
     putSettings: function (s) { return request('PUT', '/api/settings', s); },
