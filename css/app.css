@@ -174,3 +174,20 @@ button { font-family: inherit; }
 }
 @media (min-width: 861px) { .bottom-nav { display: none; } }
 :root[dir="rtl"] .hero::after { inset-inline-start: -10px; inset-inline-end: auto; }
+
+/* ── Footer ── */
+.site-foot {
+  border-top: 1px solid var(--border); background: var(--surface);
+  padding: 22px 20px calc(22px + env(safe-area-inset-bottom));
+}
+.foot-inner {
+  max-width: var(--maxw); margin: 0 auto; display: flex; flex-wrap: wrap; gap: 8px 18px;
+  align-items: center; justify-content: space-between;
+}
+.foot-made { font-size: 14px; color: var(--text-2); }
+.foot-made strong { color: var(--text); font-weight: 700; }
+.foot-copy { font-size: 13px; color: var(--text-2); }
+@media (max-width: 860px) {
+  .main { padding-bottom: 40px; }
+  .site-foot { margin-bottom: calc(66px + env(safe-area-inset-bottom)); }
+}
