@@ -110,7 +110,12 @@
     var top = el('div', 'ui-card');
     top.appendChild(el('div', 'ui-h3', 'Popular topics'));
     var tags = el('div', 'hx-tags'); tags.style.marginTop = '10px';
-    TAGS.slice(1).forEach(function (x) { tags.appendChild(el('span', 'hx-tag', '#' + x)); });
+    TAGS.slice(1).forEach(function (x) {
+      var tEl = el('span', 'hx-tag', '#' + x);
+      tEl.style.cursor = 'pointer';
+      tEl.addEventListener('click', function () { state.tag = x; load(); window.scrollTo(0, 0); });
+      tags.appendChild(tEl);
+    });
     top.appendChild(tags);
     aside.appendChild(top);
     var info = el('div', 'ui-card'); info.style.marginTop = '16px';

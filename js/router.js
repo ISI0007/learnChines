@@ -40,7 +40,13 @@
         }
         for (var i = 0; i < routes.length; i++) {
           var p = routes[i].match(path);
-          if (p) { Router.current = { path: path, params: p, query: query, name: routes[i].pattern }; document.dispatchEvent(new CustomEvent('route:change', { detail: Router.current })); return; }
+          if (p) {
+            Router.current = { path: path, params: p, query: query, name: routes[i].pattern };
+            document.dispatchEvent(new CustomEvent('route:change', { detail: Router.current }));
+            // Invoke the route's own handler so navigation re-renders without a reload.
+            try { if (routes[i].handler) routes[i].handler(Router.current); } catch (e) { if (window.console) console.error('route handler failed', e); }
+            return;
+          }
         }
         if (fallback) fallback(path);
       }

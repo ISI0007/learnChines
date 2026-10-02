@@ -133,8 +133,8 @@
   var CATALOG = [
     { g: 'Browse', items: [['All Courses', '📚', '/courses'], ['HSK 1', '', '/syllabus/1'], ['HSK 2', '', '/syllabus/2'], ['HSK 3', '', '/syllabus/3'], ['HSK 4', '', '/syllabus/4'], ['HSK 5', '', '/syllabus/5'], ['HSK 6', '', '/syllabus/6']] },
     { g: 'Skill level', items: [['Beginner', '🌱', '/courses?band=beginner'], ['Intermediate', '🌿', '/courses?band=intermediate'], ['Advanced', '🌳', '/courses?band=advanced']] },
-    { g: 'Skills', items: [['Speaking', '🗣️', '/speaking'], ['Listening', '🎧', '/practice'], ['Reading', '📖', '/library'], ['Writing', '✍️', '/practice'], ['Grammar', '✏️', '/library?q=grammar']] },
-    { g: 'Special', items: [['Business Chinese', '💼', '/courses?tab=specialized']] },
+    { g: 'Skills', items: [['Speaking', '🗣️', '/category/speaking'], ['Listening', '🎧', '/category/listening'], ['Reading', '📖', '/category/reading'], ['Writing', '✍️', '/category/writing'], ['Grammar', '✏️', '/category/grammar']] },
+    { g: 'Special', items: [['Business Chinese', '💼', '/category/business']] },
   ];
 
   function courses(mount, activeLevel) {

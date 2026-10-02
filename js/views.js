@@ -328,5 +328,112 @@
     window.API.twoFAStatus().then(function (r) { render2FA(r.ok && r.success ? r.data : { enabled: false }); }).catch(function () { render2FA({ enabled: false }); });
   }
 
+  // ── Search across every content type (Spec §101: no dead controls) ──
+  function miniWord(w) {
+    var r = el('div', 'hx-mini-word');
+    r.appendChild(el('span', 's', window.UI.esc(window.Vocab.surface(w))));
+    r.appendChild(el('span', 'p', window.UI.esc(w.p || '')));
+    r.appendChild(el('span', 'd', window.UI.esc(w.d || '')));
+    return r;
+  }
+
+  function searchView(mount) {
+    var U = window.UI;
+    var q = (window.Router.current.query && window.Router.current.query.q) || '';
+    var wrap = el('div', 'section');
+    wrap.appendChild(el('h1', 'ui-h1', q ? 'Search · ' + q : 'Search'));
+    var box = el('div', 'ui-row'); box.style.marginTop = '10px';
+    var inp = el('input', 'hx-input'); inp.value = q; inp.placeholder = 'Search vocabulary, books, exams…'; inp.style.maxWidth = '420px';
+    function goSearch() { window.Router.go('/search?q=' + encodeURIComponent(inp.value.trim())); }
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') goSearch(); });
+    box.appendChild(inp);
+    box.appendChild(U.button('Search', { variant: 'primary', onClick: goSearch }));
+    wrap.appendChild(box);
+
+    if (!q) { wrap.appendChild(el('p', 'ui-muted', 'Search 2,501 HSK words, 42 books, and 92 mock exams.')); mount.appendChild(wrap); return; }
+    var needle = q.toLowerCase();
+
+    var words = window.Vocab.search(q, null).slice(0, 30);
+    wrap.appendChild(U.sectionHead('Vocabulary · ' + words.length));
+    if (!words.length) wrap.appendChild(el('p', 'ui-muted', 'No matching words.'));
+    else { var wc = el('div', 'ui-card'); words.forEach(function (w) { wc.appendChild(miniWord(w)); }); wrap.appendChild(wc); }
+
+    var books = (window.LIBRARY.books || []).filter(function (b) { return String(b.title).toLowerCase().indexOf(needle) !== -1; }).slice(0, 20);
+    wrap.appendChild(U.sectionHead('Library · ' + books.length));
+    if (!books.length) wrap.appendChild(el('p', 'ui-muted', 'No matching books.'));
+    else {
+      var bg = el('div', 'ui-grid cols-3');
+      books.forEach(function (b) { var i = (window.LIBRARY.books || []).indexOf(b); bg.appendChild(bookTile(b, i)); });
+      wrap.appendChild(bg);
+    }
+
+    var exams = (window.EXAMS || []).filter(function (e) { return String(e.title).toLowerCase().indexOf(needle) !== -1; }).slice(0, 20);
+    wrap.appendChild(U.sectionHead('Mock exams · ' + exams.length));
+    if (!exams.length) wrap.appendChild(el('p', 'ui-muted', 'No matching exams.'));
+    else {
+      var eg = el('div', 'ui-grid cols-4');
+      exams.forEach(function (e) { eg.appendChild(U.button('HSK ' + e.level + ' · ' + e.id, { onClick: function () { window.Router.go('/exam/' + e.id); } })); });
+      wrap.appendChild(eg);
+    }
+    mount.appendChild(wrap);
+  }
+
+  function bookTile(b, idx) {
+    var c = el('div', 'ui-card hx-book');
+    c.appendChild(el('div', 'hx-book-ic', '📘'));
+    c.appendChild(el('div', 'hx-book-title', window.UI.esc(b.title)));
+    c.appendChild(el('div', 'ui-stat-sub', (b.level ? 'HSK ' + b.level : 'Extra') + ' · PDF'));
+    var row = el('div', 'ui-row'); row.style.marginTop = '10px';
+    row.appendChild(window.UI.button('Open', { variant: 'primary', onClick: function () { window.Router.go('/book/' + idx); } }));
+    c.appendChild(row);
+    return c;
+  }
+
+  var CATS = {
+    speaking: { title: 'Speaking', desc: 'Repeat sentences aloud and get scored.', to: '/speaking', cta: 'Open speaking practice' },
+    listening: { title: 'Listening', desc: 'Audio drills and mock-test listening.', to: '/practice', cta: 'Open listening practice' },
+    reading: { title: 'Reading', desc: 'Textbooks, workbooks, and graded readers.', to: '/library', cta: 'Open library' },
+    writing: { title: 'Writing', desc: 'Handwriting sheets and typed practice.', to: '/practice', cta: 'Open writing practice' },
+    grammar: { title: 'Grammar', desc: 'Grammar references and structures.', to: '/library?q=grammar', cta: 'Open grammar books' },
+    vocab: { title: 'Vocabulary', desc: 'All 2,501 HSK words with flashcards and quizzes.', to: '/vocabulary', cta: 'Open vocabulary' },
+    business: { title: 'Business Chinese', desc: 'Workplace language for professional contexts.', to: null, cta: null },
+  };
+
+  function categoryView(mount, id) {
+    var U = window.UI;
+    var c = CATS[id] || { title: id || 'Category', desc: '' };
+    var wrap = el('div', 'section');
+    wrap.appendChild(el('div', 'hx-crumb'));
+    var back = el('button', 'ui-btn ui-btn-ghost', '← Courses');
+    back.addEventListener('click', function () { window.Router.go('/courses'); });
+    wrap.querySelector('.hx-crumb').appendChild(back);
+    wrap.appendChild(el('h1', 'ui-h1', U.esc(c.title)));
+    if (c.desc) wrap.appendChild(el('p', 'ui-muted', U.esc(c.desc)));
+    var card = el('div', 'ui-card'); card.style.marginTop = '16px';
+    if (c.to) {
+      card.appendChild(el('p', 'ui-muted', 'Jump straight in — this category maps to a live part of the site.'));
+      var row = el('div', 'ui-row'); row.style.marginTop = '12px';
+      row.appendChild(U.button(c.cta, { variant: 'primary', onClick: function () { window.Router.go(c.to); } }));
+      card.appendChild(row);
+    } else {
+      card.appendChild(el('p', 'ui-muted', 'Not available in this dataset yet — the source library has no dedicated material for this category.'));
+    }
+    wrap.appendChild(card);
+    // grammar: surface the actual grammar books
+    if (id === 'grammar') {
+      var books = (window.LIBRARY.books || []).filter(function (b) { return /grammar|syllabus/i.test(b.title); });
+      if (books.length) {
+        wrap.appendChild(U.sectionHead('Grammar references'));
+        var g = el('div', 'ui-grid cols-3');
+        books.forEach(function (b) { var i = (window.LIBRARY.books || []).indexOf(b); g.appendChild(bookTile(b, i)); });
+        wrap.appendChild(g);
+      }
+    }
+    mount.appendChild(wrap);
+  }
+
+  Views.search = searchView;
+  Views.category = categoryView;
+
   window.Views = Views;
 })();

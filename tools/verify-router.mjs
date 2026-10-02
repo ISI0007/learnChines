@@ -26,32 +26,40 @@ const check = (name, cond, extra) => { if (cond) { pass++; console.log('  \u2713
 
 // Install routes, then start the router (which registers the hashchange listener).
 const seen = [];
-['/', '/vocabulary', '/syllabus/:level', '/courses', '/library', '/practice'].forEach((p) => Router.on(p, (c) => seen.push(c)));
+const fired = [];
+['/', '/vocabulary', '/syllabus/:level', '/courses', '/library', '/practice'].forEach((p) => Router.on(p, function (c) { seen.push(c); fired.push(c.name); }));
 routerStarted = true;
 Router.start(function () {});
 
 const resolve = listeners['hashchange'] ? listeners['hashchange'][0] : null;
 check('router installed a hashchange listener after start()', !!resolve);
 
-function goHash(h) { sandbox.location.hash = h; resolve(); return Router.current; }
+function goHash(h) { sandbox.location.hash = h; const before = fired.length; resolve(); return { cur: Router.current, fired: fired.length > before }; }
 
 let c = goHash('#/vocabulary?level=2');
-check('/vocabulary?level=2 resolves to /vocabulary', c.path === '/vocabulary', JSON.stringify(c));
-check('query.level === "2"', c.query && c.query.level === '2', JSON.stringify(c.query));
-check('route name is /vocabulary (not the old broken null)', c.name === '/vocabulary', c.name);
+check('/vocabulary?level=2 resolves to /vocabulary', c.cur.path === '/vocabulary', JSON.stringify(c.cur));
+check('query.level === "2"', c.cur.query && c.cur.query.level === '2', JSON.stringify(c.cur.query));
+check('route name is /vocabulary (not the old broken null)', c.cur.name === '/vocabulary', c.cur.name);
+check('route handler FIRED on navigation (the click-does-nothing bug)', c.fired === true, 'handler was not invoked');
 
 c = goHash('#/syllabus/3?tab=vocabulary');
-check('/syllabus/3?tab=vocabulary -> level param is clean "3"', c.params && c.params.level === '3', JSON.stringify(c));
-check('  and tab is in query', c.query && c.query.tab === 'vocabulary', JSON.stringify(c.query));
+check('/syllabus/3?tab=vocabulary -> level param is clean "3"', c.cur.params && c.cur.params.level === '3', JSON.stringify(c.cur));
+check('  and tab is in query', c.cur.query && c.cur.query.tab === 'vocabulary', JSON.stringify(c.cur.query));
+check('  and its handler fired too', c.fired === true);
 
 c = goHash('#/courses?band=beginner');
-check('/courses?band=beginner matches /courses', c.path === '/courses' && c.query.band === 'beginner', JSON.stringify(c));
+check('/courses?band=beginner matches /courses', c.cur.path === '/courses' && c.cur.query.band === 'beginner', JSON.stringify(c.cur));
 
 c = goHash('#/library?q=grammar');
-check('/library?q=grammar matches /library', c.path === '/library' && c.query.q === 'grammar', JSON.stringify(c));
+check('/library?q=grammar matches /library', c.cur.path === '/library' && c.cur.query.q === 'grammar', JSON.stringify(c.cur));
 
 c = goHash('#/courses');
-check('plain /courses still works', c.path === '/courses' && Object.keys(c.query).length === 0, JSON.stringify(c));
+check('plain /courses still works', c.cur.path === '/courses' && Object.keys(c.cur.query).length === 0, JSON.stringify(c.cur));
+
+// repeat navigation must fire the handler every time (not just once)
+const firedBefore = fired.length;
+goHash('#/courses'); goHash('#/vocabulary'); goHash('#/courses');
+check('handler fires on every navigation', fired.length === firedBefore + 3, 'fired ' + (fired.length - firedBefore) + ' of 3');
 
 console.log('\n' + (fail === 0 ? '\u2713 PASS' : '\u2717 FAIL') + '  ' + pass + ' passed, ' + fail + ' failed');
 process.exit(fail === 0 ? 0 : 1);

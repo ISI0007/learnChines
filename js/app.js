@@ -100,6 +100,8 @@
         name === '/progress' ? function () { V4.progress(page); } :
         name === '/profile' ? function () { V.profile(page); } :
         name === '/settings' ? function () { V.settings(page); } :
+        name === '/search' ? function () { V.search(page); } :
+        name === '/category/:id' ? function () { V.category(page, params.id); } :
         name === '/admin' ? function () { (window.V7 || { admin: V.admin }).admin(page); } :
         function () { V4.home(page); };
       fn();
@@ -120,7 +122,11 @@
         $('#themeBtn').textContent = next === 'dark' ? '☀️' : '🌙';
       });
       var search = $('#navSearch');
-      if (search) search.addEventListener('keydown', function (e) { if (e.key === 'Enter') { window.UI.toast('Search arrives in Phase 3'); } });
+      if (search) search.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        var q = search.value.trim();
+        if (q) window.Router.go('/search?q=' + encodeURIComponent(q));
+      });
       document.addEventListener('i18n:change', function () { App.refreshChrome(); App.render(); });
     },
 
@@ -140,7 +146,7 @@
     App.bind();
 
     // routes (hash-based)
-    ['/', '/courses', '/practice', '/community', '/exams', '/progress', '/profile', '/settings', '/admin', '/speaking',
+    ['/', '/courses', '/practice', '/community', '/exams', '/progress', '/profile', '/settings', '/admin', '/speaking', '/search', '/category/:id',
      '/syllabus/:level', '/lesson/:id', '/vocabulary', '/library', '/book/:idx', '/exam/:id', '/study/:mode'].forEach(function (p) {
       window.Router.on(p, function () { App.render(); });
     });
