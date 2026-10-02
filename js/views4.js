@@ -324,7 +324,7 @@
       var r = el('div', 'hx-check');
       var left = el('div'); left.style.flex = '1';
       left.appendChild(el('div', null, '<strong style="font-size:17px">' + esc(window.Settings.surface(w)) + '</strong> <span style="color:var(--primary)">' + esc(w.p || '') + '</span>'));
-      left.appendChild(el('div', 'ui-stat-sub', esc(w.d || '')));
+      left.appendChild(el('div', 'ui-stat-sub', esc(window.HxI18n ? window.HxI18n.meaning(w) : (w.d || ''))));
       r.appendChild(left);
       var sp = el('button', 'hx-mini-btn', '🔊'); sp.addEventListener('click', function () { speak(w.s); });
       r.appendChild(sp);

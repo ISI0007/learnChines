@@ -179,7 +179,7 @@
       U.clear(face);
       face.appendChild(el('div', 'hx-flash-char', esc(window.Settings.surface(w))));
       face.appendChild(el('div', 'hx-flash-pinyin', esc(w.p || '')));
-      face.appendChild(el('div', 'hx-flash-def', esc(w.d || '')));
+      face.appendChild(el('div', 'hx-flash-def', esc(window.HxI18n ? window.HxI18n.meaning(w) : (w.d || ''))));
       var sp2 = el('button', 'hx-mini-btn', '🔊'); sp2.addEventListener('click', function (e) { e.stopPropagation(); speak(w.s); });
       face.appendChild(sp2);
       U.clear(controls);
@@ -207,7 +207,7 @@
     opts.forEach(function (o, i) {
       var row = el('div', 'hx-opt');
       row.appendChild(el('div', 'key', String.fromCharCode(65 + i)));
-      row.appendChild(el('div', 'ui-p', esc(o.d || '')));
+      row.appendChild(el('div', 'ui-p', esc(window.HxI18n ? window.HxI18n.meaning(o) : (o.d || ''))));
       row.addEventListener('click', function () {
         if (stage._done) return; stage._done = true;
         var ok = o.s === w.s;

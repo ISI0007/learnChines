@@ -9,8 +9,9 @@ const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SESS_FILE = path.join(DATA_DIR, 'sessions.json');
 const POSTS_FILE = path.join(DATA_DIR, 'posts.json');
 const BANS_FILE = path.join(DATA_DIR, 'bans.json');
+const TRANS_FILE = path.join(DATA_DIR, 'translations.json');
 
-const state = { users: [], sessions: {}, posts: [], bans: [] };
+const state = { users: [], sessions: {}, posts: [], bans: [], translations: {} };
 
 function ensureDir() { fs.mkdirSync(DATA_DIR, { recursive: true }); }
 
@@ -27,6 +28,7 @@ function saveUsers() { writeJson(USERS_FILE, { users: state.users }); }
 function saveSessions() { writeJson(SESS_FILE, { sessions: state.sessions }); }
 function savePosts() { writeJson(POSTS_FILE, { posts: state.posts }); }
 function saveBans() { writeJson(BANS_FILE, { bans: state.bans }); }
+function saveTranslations() { writeJson(TRANS_FILE, { translations: state.translations }); }
 function newId() { return crypto.randomBytes(8).toString('hex'); }
 
 function defaultSettings() {
@@ -64,6 +66,8 @@ function load() {
   state.posts = Array.isArray(pj.posts) ? pj.posts : [];
   const bj = readJson(BANS_FILE, { bans: [] });
   state.bans = Array.isArray(bj.bans) ? bj.bans : [];
+  const tj = readJson(TRANS_FILE, { translations: {} });
+  state.translations = (tj && typeof tj.translations === 'object' && !Array.isArray(tj.translations)) ? tj.translations : {};
   const now = Date.now();
   let changed = false;
   for (const k of Object.keys(state.sessions)) {
@@ -106,6 +110,7 @@ function createUser(opts) {
 }
 
 module.exports = {
-  state, load, saveUsers, saveSessions, savePosts, saveBans, newId,
+  state, load, saveUsers, saveSessions, savePosts, saveBans, saveTranslations, newId,
   findUserByName, findUserById, createUser, deleteUser, defaultProgress, defaultSettings, ensureDir,
+  USERS_FILE, TRANS_FILE,
 };

@@ -176,6 +176,7 @@
           window.Settings.set(key, s.value);
           window.UI.toast('Saved');
           if (key === 'uiLanguage') { window.App.refreshChrome(); window.App.render(); }
+          if (key === 'translationLanguage' && window.HxI18n) { window.HxI18n.refresh(); window.App.render(); }
         });
         row.appendChild(s);
         card.appendChild(row);
@@ -187,6 +188,11 @@
       g1.appendChild(sel('Learning language', 'learningLanguage', window.Settings.learningLanguages(), 'The Chinese you are studying.'));
       g1.appendChild(sel('Translation language', 'translationLanguage', window.Settings.translationLanguages(), 'The language meanings are shown in.'));
       wrap.appendChild(g1);
+      var cov = el('div', 'ui-muted'); cov.style.marginTop = '8px';
+      function renderCov() { cov.textContent = window.HxI18n ? (window.HxI18n.count() + ' word(s) have a ' + window.HxI18n.lang + ' translation published; the rest show the built-in English gloss.') : ''; }
+      renderCov();
+      document.addEventListener('hx:translations', renderCov);
+      wrap.appendChild(cov);
 
       var g2 = el('div', 'ui-grid cols-3'); g2.style.marginTop = '16px';
       g2.appendChild(sel('Pinyin', 'pinyinPreference', [{ code: 'always', name: 'Always show' }, { code: 'click', name: 'Show on click' }, { code: 'hidden', name: 'Hidden' }]));

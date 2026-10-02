@@ -20,4 +20,6 @@ module.exports = {
   PROGRESS_MAX: 128 * 1024,
   // Never serve these top-level folders over HTTP.
   BLOCKED_DIRS: ['server', '_retired', 'tools', '.git'],
+  // Read-only vocabulary index used by the translation admin (Spec §79).
+  VOCAB_FILE: path.join(ROOT, 'data', 'hsk-vocab.json'),
 };

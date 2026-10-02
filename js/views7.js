@@ -66,7 +66,7 @@
     return row;
   }
 
-  var TABS = [['overview', 'Overview'], ['users', 'Users'], ['content', 'Content'], ['community', 'Community'], ['sessions', 'Sessions']];
+  var TABS = [['overview', 'Overview'], ['users', 'Users'], ['content', 'Content'], ['community', 'Community'], ['translations', 'Translations'], ['sessions', 'Sessions']];
   var state = { tab: 'overview' };
 
   function admin(mount) {
@@ -102,6 +102,7 @@
     if (state.tab === 'users') return usersTab(body);
     if (state.tab === 'content') return contentTab(body);
     if (state.tab === 'community') return communityTab(body);
+    if (state.tab === 'translations') return translationsTab(body);
     return sessionsTab(body);
   }
 
@@ -411,6 +412,178 @@
       });
       tbl.appendChild(tb); c.appendChild(tbl); body.appendChild(c);
     }).catch(function () { U.clear(body); body.appendChild(U.error('Could not load sessions')); });
+  }
+
+  // ───── Translations (Spec §79) ─────
+  var LANGS = [['en', 'English'], ['ru', 'Russian'], ['ur', 'Urdu'], ['ar', 'Arabic'], ['fa', 'Persian'], ['hi', 'Hindi'], ['es', 'Spanish'], ['fr', 'French'], ['de', 'German'], ['pt', 'Portuguese'], ['ja', 'Japanese'], ['ko', 'Korean'], ['it', 'Italian'], ['tr', 'Turkish'], ['id', 'Indonesian'], ['vi', 'Vietnamese'], ['bn', 'Bengali'], ['th', 'Thai'], ['zh-CN', 'Chinese (Simpl.)'], ['zh-TW', 'Chinese (Trad.)']];
+  var tState = { lang: 'ru', level: 'all', q: '' };
+  function langName(code) { for (var i = 0; i < LANGS.length; i++) if (LANGS[i][0] === code) return LANGS[i][1]; return code; }
+
+  function translationsTab(body) {
+    body.appendChild(U.loading(4));
+    window.API.adminTranslationStats().then(function (r) {
+      U.clear(body);
+      if (!r.ok || !r.success) { body.appendChild(U.error('Could not load translation stats', (r.error && r.error.message) || '')); return; }
+      var d = r.data, total = d.vocabTotal || 0;
+
+      var head = el('div', 'ui-card');
+      var hrow = el('div'); hrow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px';
+      hrow.appendChild(el('div', 'ui-h3', 'Vocabulary translations'));
+      hrow.appendChild(el('div', 'ui-muted', fmt(total) + ' words in the vocabulary index · ' + d.activeLanguages + ' language(s) in progress'));
+      head.appendChild(hrow);
+      head.appendChild(el('p', 'ui-muted', 'Translate vocabulary meanings, then publish them. Published translations appear to learners who pick that translation language. Nothing is auto-generated — every entry is human-authored.'));
+
+      var cov = el('div', 'ui-grid cols-4'); cov.style.marginTop = '12px';
+      d.languages.slice().sort(function (a, b) { return b.coverage - a.coverage; }).forEach(function (l) {
+        cov.appendChild(U.stat(l.coverage + '%', langName(l.lang), l.count ? (l.published + ' published · ' + (l.count - l.published) + ' in progress') : 'not started', l.count ? 'green' : ''));
+      });
+      head.appendChild(cov);
+
+      // controls
+      var ctl = el('div'); ctl.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px';
+      var langSel = el('select', 'lang-select');
+      LANGS.forEach(function (l) { var o = el('option', null, l[1]); o.value = l[0]; if (l[0] === tState.lang) o.selected = true; langSel.appendChild(o); });
+      var levelSel = el('select', 'lang-select');
+      ['all'].concat(d.levels || []).forEach(function (l) { var o = el('option', null, l === 'all' ? 'All levels' : 'HSK ' + l); o.value = l; if (l === tState.level) o.selected = true; levelSel.appendChild(o); });
+      var search = el('input', 'hx-input'); search.placeholder = 'Search hanzi, pinyin, or meaning…'; search.style.maxWidth = '300px';
+      ctl.appendChild(langSel); ctl.appendChild(levelSel); ctl.appendChild(search);
+      head.appendChild(ctl);
+      body.appendChild(head);
+
+      var results = el('div'); results.style.marginTop = '14px';
+      body.appendChild(results);
+
+      function tblHead() {
+        var hr = el('tr');
+        ['Hanzi', 'Pinyin', 'English', langName(tState.lang), 'Status', 'Updated', ''].forEach(function (h) {
+          var th = el('th', null, esc(h)); th.style.cssText = 'text-align:left;color:var(--text-2);padding:9px;border-bottom:1px solid var(--border);white-space:nowrap';
+          hr.appendChild(th);
+        });
+        var thead = el('thead'); thead.appendChild(hr); return thead;
+      }
+
+      function load() {
+        U.clear(results); results.appendChild(U.loading(3));
+        window.API.adminTranslationSearch(tState.lang, tState.q, tState.level, 50).then(function (rr) {
+          U.clear(results);
+          if (!rr.ok || !rr.success) { results.appendChild(U.error('Could not load translations', (rr.error && rr.error.message) || '')); return; }
+          var rows = rr.data.rows || [];
+          var box = card();
+          var top = el('div'); top.style.cssText = 'display:flex;justify-content:space-between;align-items:center';
+          top.appendChild(el('div', 'ui-h3', langName(tState.lang) + ' · ' + fmt(rr.data.returned) + ' of ' + fmt(rr.data.total) + ' matches'));
+          top.appendChild(el('div', 'ui-muted', 'Click a row to edit'));
+          box.appendChild(top);
+          if (!rows.length) { box.appendChild(U.empty('No matching words', 'Try a different search or level.')); results.appendChild(box); return; }
+          var tbl = el('table'); tbl.style.cssText = 'width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px';
+          tbl.appendChild(tblHead());
+          var tb = el('tbody');
+          rows.forEach(function (v) {
+            var tr = el('tr'); tr.style.cursor = 'pointer';
+            var hz = el('td'); hz.style.cssText = 'padding:9px;border-bottom:1px solid var(--border);font-size:19px';
+            hz.appendChild(el('span', null, esc(v.hanzi)));
+            if (v.traditional && v.traditional !== v.hanzi) { var t2 = el('div', 'ui-muted', esc(v.traditional)); t2.style.fontSize = '12px'; hz.appendChild(t2); }
+            tr.appendChild(hz);
+            tr.appendChild(tdv(v.pinyin));
+            tr.appendChild(tdv(v.def.length > 42 ? v.def.slice(0, 42) + '…' : v.def));
+            var mc = el('td'); mc.style.cssText = 'padding:9px;border-bottom:1px solid var(--border)';
+            mc.appendChild(el('div', null, v.translation && v.translation.meaning ? esc(v.translation.meaning) : ''));
+            if (!v.translation) mc.appendChild(el('span', 'ui-muted', '— not translated'));
+            tr.appendChild(mc);
+            var sc = el('td'); sc.style.cssText = 'padding:9px;border-bottom:1px solid var(--border)';
+            var stt = v.translation ? v.translation.status : 'missing';
+            sc.appendChild(U.badge(stt, stt === 'published' ? 'green' : stt === 'reviewed' ? 'blue' : stt === 'draft' ? 'amber' : ''));
+            tr.appendChild(sc);
+            tr.appendChild(tdv(v.translation && v.translation.updatedAt ? ago(v.translation.updatedAt) : '—'));
+            var ac = el('td'); ac.style.cssText = 'padding:9px;border-bottom:1px solid var(--border)';
+            ac.appendChild(miniBtn('Edit', function () { openEditor(v, load); }));
+            tr.appendChild(ac);
+            tr.addEventListener('click', function (e) { if (e.target.tagName === 'BUTTON') return; openEditor(v, load); });
+            tb.appendChild(tr);
+          });
+          tbl.appendChild(tb); box.appendChild(tbl); results.appendChild(box);
+        }).catch(function () { U.clear(results); results.appendChild(U.error('Could not load translations')); });
+      }
+
+      var timer = null;
+      search.addEventListener('input', function () { tState.q = search.value.trim(); clearTimeout(timer); timer = setTimeout(load, 250); });
+      langSel.addEventListener('change', function () { tState.lang = langSel.value; load(); });
+      levelSel.addEventListener('change', function () { tState.level = levelSel.value; load(); });
+      load();
+    }).catch(function () { U.clear(body); body.appendChild(U.error('Could not load translation stats')); });
+  }
+
+  function openEditor(v, reload) {
+    var U2 = U;
+    var row = v.translation || { meaning: '', explanation: '', example: '', status: 'draft' };
+    var backdrop = el('div', 'hx-modal-backdrop');
+    backdrop.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px';
+    var modal = el('div', 'ui-card');
+    modal.style.cssText = 'max-width:560px;width:100%;max-height:88vh;overflow:auto';
+    var head = el('div'); head.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:12px';
+    var left = el('div');
+    left.appendChild(el('div', 'ui-h3', 'Translate · ' + langName(tState.lang)));
+    left.appendChild(el('div', 'ui-muted', 'HSK ' + esc(v.level)));
+    head.appendChild(left);
+    var close = el('button', 'ui-btn ui-btn-ghost', '✕'); close.type = 'button';
+    head.appendChild(close);
+    modal.appendChild(head);
+
+    var hz = el('div'); hz.style.cssText = 'font-size:40px;margin-top:6px';
+    hz.appendChild(el('span', null, esc(v.hanzi)));
+    if (v.traditional && v.traditional !== v.hanzi) { var tr2 = el('span', 'ui-muted', ' ' + esc(v.traditional)); tr2.style.fontSize = '20px'; hz.appendChild(tr2); }
+    modal.appendChild(hz);
+    modal.appendChild(el('div', 'ui-muted', esc(v.pinyin) + (v.toneNumbers ? ' · ' + esc(v.toneNumbers) : '')));
+    var enBox = el('div'); enBox.style.cssText = 'background:var(--bg-2,rgba(15,23,42,.04));border-radius:8px;padding:10px;margin-top:10px';
+    enBox.appendChild(el('div', 'ui-muted', 'English'));
+    enBox.appendChild(el('div', null, esc(v.def) || '(no gloss in source)'));
+    modal.appendChild(enBox);
+
+    function field(label, val, ph, area) {
+      var w = el('div'); w.style.marginTop = '12px';
+      w.appendChild(el('label', 'ui-muted', label));
+      var inp = area ? el('textarea', 'hx-input') : el('input', 'hx-input');
+      if (area) { inp.rows = 3; inp.style.resize = 'vertical'; }
+      inp.value = val || ''; inp.placeholder = ph || '';
+      w.appendChild(inp); return { wrap: w, input: inp };
+    }
+    var mF = field(langName(tState.lang) + ' meaning *', row.meaning, 'translation of the meaning');
+    var xF = field('Explanation (optional)', row.explanation, 'grammar notes, usage, nuance', true);
+    var eF = field('Example translation (optional)', row.example, 'example sentence in ' + langName(tState.lang), true);
+    modal.appendChild(mF.wrap); modal.appendChild(xF.wrap); modal.appendChild(eF.wrap);
+
+    var sW = el('div'); sW.style.marginTop = '12px';
+    sW.appendChild(el('label', 'ui-muted', 'Status'));
+    var sSel = el('select', 'lang-select');
+    ['draft', 'reviewed', 'published'].forEach(function (s) { var o = el('option', null, s); o.value = s; if ((row.status || 'draft') === s) o.selected = true; sSel.appendChild(o); });
+    sW.appendChild(sSel); modal.appendChild(sW);
+
+    var bar = el('div'); bar.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;margin-top:16px';
+    if (row.meaning) bar.appendChild(U.button('Delete', { variant: 'ghost', onClick: function () {
+      if (!window.confirm('Delete this translation?')) return;
+      window.API.adminTranslationSave({ lang: tState.lang, hanzi: v.hanzi, delete: true }).then(function (r) {
+        if (r.ok && r.success) { U.toast('Translation deleted'); cleanup(); reload(); } else U.toast('Could not delete');
+      });
+    } }));
+    bar.appendChild(U.button('Cancel', { variant: 'ghost', onClick: function () { cleanup(); } }));
+    var save = U.button('Save', { variant: 'primary', onClick: function () {
+      var payload = { lang: tState.lang, hanzi: v.hanzi, meaning: mF.input.value.trim(), explanation: xF.input.value.trim(), example: eF.input.value.trim(), status: sSel.value };
+      if (!payload.meaning) return U.toast('Meaning is required');
+      save.disabled = true;
+      window.API.adminTranslationSave(payload).then(function (r) {
+        save.disabled = false;
+        if (r.ok && r.success) { U.toast('Saved (' + sSel.value + ')'); cleanup(); reload(); } else U.toast((r.error && r.error.message) || 'Could not save');
+      }).catch(function () { save.disabled = false; U.toast('Could not save'); });
+    } });
+    bar.appendChild(save);
+    modal.appendChild(bar);
+    backdrop.appendChild(modal);
+    function cleanup() { if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); document.removeEventListener('keydown', onKey); }
+    function onKey(e) { if (e.key === 'Escape') cleanup(); }
+    close.addEventListener('click', cleanup);
+    backdrop.addEventListener('click', function (e) { if (e.target === backdrop) cleanup(); });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(backdrop);
+    setTimeout(function () { try { mF.input.focus(); } catch (e) {} }, 30);
   }
 
   window.V7 = { admin: admin };

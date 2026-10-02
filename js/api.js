@@ -66,5 +66,13 @@
     adminComments: function () { return request('GET', '/api/admin/comments'); },
     adminUserAction: function (id, action) { return request('POST', '/api/admin/users/' + encodeURIComponent(id), { action: action }); },
     adminDeleteComment: function (postId, cid) { return request('DELETE', '/api/admin/posts/' + encodeURIComponent(postId) + '/comments/' + encodeURIComponent(cid)); },
+
+    // translations (Spec §79)
+    translations: function (lang) { return request('GET', '/api/translations?lang=' + encodeURIComponent(lang)); },
+    adminTranslationStats: function () { return request('GET', '/api/admin/translations/stats'); },
+    adminTranslationSearch: function (lang, q, level, limit) {
+      return request('GET', '/api/admin/translations?lang=' + encodeURIComponent(lang) + '&q=' + encodeURIComponent(q || '') + '&level=' + encodeURIComponent(level || 'all') + '&limit=' + (limit || 50));
+    },
+    adminTranslationSave: function (payload) { return request('POST', '/api/admin/translations', payload); },
   };
 })();

@@ -465,4 +465,112 @@ function reportPost(ctx) {
   ok(ctx.res, { flags: p.flags.length, reported: true });
 }
 
-module.exports = { register, login, logout, me, getProgress, putProgress, postActivity, changePassword, getSettings, putSettings, listPosts, createPost, getPost, likePost, commentPost, deletePost, reportPost, adminUsers, adminUser, adminSessions, adminStats, adminUserAction, adminModeration, adminComments, adminDeleteComment, fail, ok };
+// ── translation admin (Spec §79) ──
+const config = require('../config');
+const TRANS_LANGS = ['en','zh-CN','zh-TW','ru','ur','ar','fa','hi','es','fr','de','pt','ja','ko','it','tr','id','vi','bn','th'];
+const TRANS_STATUS = ['draft','reviewed','published'];
+
+let VOCAB_INDEX = null;
+function vocabIndex() {
+  if (VOCAB_INDEX) return VOCAB_INDEX;
+  let data = {};
+  try { data = JSON.parse(require('fs').readFileSync(config.VOCAB_FILE, 'utf8')); } catch (e) { data = {}; }
+  const items = [];
+  const levels = Object.keys(data).sort();
+  for (const level of levels) {
+    for (const v of (Array.isArray(data[level]) ? data[level] : [])) {
+      if (v && v.s) items.push({ level: String(level), hanzi: v.s, traditional: v.t || v.s, pinyin: v.p || '', toneNumbers: v.pn || '', def: v.d || '' });
+    }
+  }
+  VOCAB_INDEX = { items, levels };
+  return VOCAB_INDEX;
+}
+
+function transBucket(lang, create) {
+  const l = String(lang || '');
+  if (!TRANS_LANGS.includes(l)) return null;
+  const all = db.state.translations || (db.state.translations = {});
+  if (!all[l] || typeof all[l] !== 'object' || Array.isArray(all[l])) { if (!create) return null; all[l] = {}; }
+  return all[l];
+}
+
+// Public: published translations for one language, keyed by hanzi.
+function publicTranslations(ctx) {
+  const lang = String(ctx.query.get('lang') || '').trim();
+  if (!TRANS_LANGS_SAFE(lang)) return fail(ctx.res, 400, 'BAD_LANG', 'Unsupported language');
+  const bucket = transBucket(lang, false);
+  const out = {};
+  if (bucket) {
+    for (const hz of Object.keys(bucket)) {
+      const r = bucket[hz];
+      if (r && r.status === 'published' && r.meaning) out[hz] = { m: r.meaning, x: r.explanation || '', e: r.example || '' };
+    }
+  }
+  ok(ctx.res, { lang: lang, translations: out, count: Object.keys(out).length });
+}
+function TRANS_LANGS_SAFE(l) { return TRANS_LANGS.includes(String(l || '')); }
+
+function adminTranslationStats(ctx) {
+  if (ctx.user.role !== 'admin') return fail(ctx.res, 403, 'FORBIDDEN', 'Admin only');
+  const vocab = vocabIndex();
+  const total = vocab.items.length;
+  const languages = TRANS_LANGS.map((lang) => {
+    const bucket = transBucket(lang, false) || {};
+    let draft = 0, reviewed = 0, published = 0;
+    for (const hz of Object.keys(bucket)) {
+      const st = (bucket[hz] || {}).status;
+      if (st === 'published') published++; else if (st === 'reviewed') reviewed++; else draft++;
+    }
+    const count = Object.keys(bucket).length;
+    return { lang, count, draft, reviewed, published, total, missing: Math.max(0, total - count), coverage: total ? Math.round((count / total) * 1000) / 10 : 0 };
+  }).filter((x) => x.count > 0 || x.lang === 'en');
+  ok(ctx.res, { vocabTotal: total, languages, levels: vocab.levels, activeLanguages: languages.filter((l) => l.count > 0).length });
+}
+
+function adminTranslationSearch(ctx) {
+  if (ctx.user.role !== 'admin') return fail(ctx.res, 403, 'FORBIDDEN', 'Admin only');
+  const lang = String(ctx.query.get('lang') || 'en');
+  if (!TRANS_LANGS_SAFE(lang)) return fail(ctx.res, 400, 'BAD_LANG', 'Unsupported language');
+  const q = String(ctx.query.get('q') || '').trim().toLowerCase();
+  const level = String(ctx.query.get('level') || '').trim();
+  const limit = Math.min(100, Math.max(1, Number(ctx.query.get('limit')) || 50));
+  let items = vocabIndex().items;
+  if (level && level !== 'all') items = items.filter((v) => v.level === level);
+  if (q) {
+    const qq = q.replace(/\s/g, '');
+    items = items.filter((v) => v.hanzi.indexOf(q) !== -1 || (v.traditional || '').indexOf(q) !== -1 ||
+      v.pinyin.toLowerCase().indexOf(q) !== -1 || v.toneNumbers.toLowerCase().replace(/\s/g, '').indexOf(qq) !== -1 ||
+      v.def.toLowerCase().indexOf(q) !== -1);
+  }
+  const bucket = transBucket(lang, false) || {};
+  const rows = items.slice(0, limit).map((v) => {
+    const r = bucket[v.hanzi] || null;
+    return Object.assign({}, v, { translation: r ? { meaning: r.meaning || '', explanation: r.explanation || '', example: r.example || '', status: r.status || 'draft', updatedAt: r.updatedAt || null } : null });
+  });
+  ok(ctx.res, { lang, query: q, level: level || 'all', rows, total: items.length, returned: rows.length });
+}
+
+function adminTranslationSave(ctx) {
+  if (ctx.user.role !== 'admin') return fail(ctx.res, 403, 'FORBIDDEN', 'Admin only');
+  const b = ctx.body || {};
+  const lang = String(b.lang || '');
+  const hanzi = String(b.hanzi || '').trim().slice(0, 40);
+  if (!TRANS_LANGS_SAFE(lang)) return fail(ctx.res, 400, 'BAD_LANG', 'Unsupported language');
+  if (!hanzi) return fail(ctx.res, 400, 'BAD_HANZI', 'hanzi is required');
+  const bucket = transBucket(lang, true);
+  if (b.delete === true) {
+    const existed = !!bucket[hanzi];
+    if (existed) { delete bucket[hanzi]; db.saveTranslations(); }
+    return ok(ctx.res, { deleted: existed, lang: lang, hanzi: hanzi });
+  }
+  const meaning = String(b.meaning || '').trim().slice(0, 400);
+  const explanation = String(b.explanation || '').trim().slice(0, 1200);
+  const example = String(b.example || '').trim().slice(0, 400);
+  if (!meaning) return fail(ctx.res, 400, 'INVALID_MEANING', 'Meaning is required');
+  const status = TRANS_STATUS.includes(b.status) ? b.status : 'draft';
+  bucket[hanzi] = { meaning, explanation, example, status, updatedAt: new Date().toISOString(), updatedBy: ctx.user.username };
+  db.saveTranslations();
+  ok(ctx.res, { lang: lang, hanzi: hanzi, status: status, updatedAt: bucket[hanzi].updatedAt });
+}
+
+module.exports = { register, login, logout, me, getProgress, putProgress, postActivity, changePassword, getSettings, putSettings, listPosts, createPost, getPost, likePost, commentPost, deletePost, reportPost, publicTranslations, adminUsers, adminUser, adminSessions, adminStats, adminUserAction, adminModeration, adminComments, adminDeleteComment, adminTranslationStats, adminTranslationSearch, adminTranslationSave, fail, ok };

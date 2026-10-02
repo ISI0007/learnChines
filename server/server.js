@@ -114,7 +114,7 @@ function serveStatic(req, res, urlPath) {
 }
 
 // ── routing ──
-const AUTH_REQUIRED = new Set(['me', 'getProgress', 'putProgress', 'postActivity', 'changePassword', 'getSettings', 'putSettings', 'createPost', 'likePost', 'commentPost', 'deletePost', 'reportPost', 'adminUsers', 'adminUser', 'adminSessions', 'adminStats', 'adminUserAction', 'adminModeration', 'adminComments', 'adminDeleteComment']);
+const AUTH_REQUIRED = new Set(['me', 'getProgress', 'putProgress', 'postActivity', 'changePassword', 'getSettings', 'putSettings', 'createPost', 'likePost', 'commentPost', 'deletePost', 'reportPost', 'adminUsers', 'adminUser', 'adminSessions', 'adminStats', 'adminUserAction', 'adminModeration', 'adminComments', 'adminDeleteComment', 'adminTranslationStats', 'adminTranslationSearch', 'adminTranslationSave']);
 
 async function handleApi(req, res, url) {
   const p = url.pathname;
@@ -159,6 +159,10 @@ async function handleApi(req, res, url) {
   else if (p === '/api/admin/stats' && method === 'GET') route = 'adminStats';
   else if (p === '/api/admin/moderation' && method === 'GET') route = 'adminModeration';
   else if (p === '/api/admin/comments' && method === 'GET') route = 'adminComments';
+  else if (p === '/api/translations' && method === 'GET') route = 'publicTranslations';
+  else if (p === '/api/admin/translations/stats' && method === 'GET') route = 'adminTranslationStats';
+  else if (p === '/api/admin/translations' && method === 'GET') route = 'adminTranslationSearch';
+  else if (p === '/api/admin/translations' && method === 'POST') route = 'adminTranslationSave';
   else {
     let pm = /^\/api\/posts\/([a-f0-9]{1,32})$/.exec(p);
     if (pm && method === 'GET') { route = 'getPost'; ctx.params.id = pm[1]; }

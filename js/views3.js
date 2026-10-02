@@ -47,7 +47,12 @@
     main.appendChild(el('div', 'hx-word-char', U.esc(S.surface(w))));
     var meta = el('div', 'hx-word-meta');
     if (S_.pinyinPreference !== 'hidden') meta.appendChild(el('span', 'hx-pinyin', U.esc(w.p || '')));
-    if (S_.translationDisplayMode !== 'hidden') meta.appendChild(el('span', 'hx-def', U.esc(w.d || '')));
+    if (S_.translationDisplayMode !== 'hidden') {
+      var dTxt = (window.HxI18n ? window.HxI18n.meaning(w) : (w.d || ''));
+      meta.appendChild(el('span', 'hx-def', U.esc(dTxt)));
+      var xTxt = window.HxI18n ? window.HxI18n.explanation(w) : '';
+      if (xTxt) { var xb = el('span', 'ui-muted', U.esc(xTxt)); xb.style.marginLeft = '8px'; meta.appendChild(xb); }
+    }
     main.appendChild(meta);
     row.appendChild(main);
 
