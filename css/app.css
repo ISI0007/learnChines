@@ -373,3 +373,12 @@ button { font-family: inherit; }
 .hx-cat { display: flex; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); cursor: pointer; transition: transform .12s, box-shadow .12s; }
 .hx-cat:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
 .hx-cat-ic { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; font-size: 22px; flex-shrink: 0; }
+
+/* ── Phase 4: flashcards & study ── */
+.hx-flash { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 34px 20px; text-align: center; cursor: pointer; }
+.hx-flash-face { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.hx-flash-char { font-size: 68px; font-weight: 800; line-height: 1.1; letter-spacing: 2px; text-align: center; }
+.hx-flash-pinyin { font-size: 22px; color: var(--primary); font-weight: 600; }
+.hx-flash-def { font-size: 17px; color: var(--text-2); max-width: 460px; }
+.hx-flash .hx-mini-btn { margin-top: 4px; }
+@media (max-width: 560px) { .hx-flash-char { font-size: 52px; } }

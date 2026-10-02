@@ -10,6 +10,8 @@ and an admin view.
 
 - **Courses & lessons** — HSK 1–5, **2,501 words** in 25-word lessons with progress tracking
 - **Vocabulary** — search by character, pinyin, or meaning; audio; mark-known (+XP)
+- **Practice & quizzes** — flashcards, multiple choice, listening, and typing with
+  **spaced repetition** (SM-2-lite review scheduling saved to your account)
 - **Library** — 42 textbooks/workbooks (HSK 1–5) with an in-page PDF viewer
 - **HSK mock exams** — 92 exam sets (88 with listening audio), answer keys, transcripts
 - **Language & display** — 20 interface languages (with RTL), plus independent
@@ -61,6 +63,7 @@ With the server running:
 
 ```bash
 node tools/verify-phase23.mjs   # data integrity, auth guards, settings API
+node tools/verify-phase4.mjs    # spaced-repetition engine + study routes
 node tools/verify-sessions.mjs  # auth + session lifecycle
 ```
 
@@ -75,6 +78,6 @@ node tools/verify-sessions.mjs  # auth + session lifecycle
 
 Built module-by-module from a 130-section master spec. Done: **Phase 1**
 (shell, design system, i18n, providers, router, auth), **Phase 2** (language
-onboarding), **Phase 3** (courses, vocabulary, library, exams), plus a
-collage-matched UI pass. Next: practice/quiz engine, real AI provider, voice,
-community, admin CMS.
+onboarding), **Phase 3** (courses, vocabulary, library, exams), **Phase 4**
+(practice/quiz engine with spaced repetition), plus a collage-matched UI pass.
+Next: real AI provider + RAG, voice, community, admin CMS.

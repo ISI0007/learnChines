@@ -82,18 +82,19 @@
       var cur = window.Router.current || { name: '/', params: {} };
       var name = cur.name || '/', params = cur.params || {};
       var page = window.UI.el('div', 'page');
-      var V = window.Views, V3 = window.Views3, V4 = window.Views4;
+      var V = window.Views, V3 = window.Views3, V4 = window.Views4, V5 = window.Views5;
       var fn =
         name === '/' ? function () { V4.home(page); } :
         name === '/courses' ? function () { V4.courses(page); } :
         name === '/syllabus/:level' ? function () { V4.syllabus(page, params.level); } :
-        name === '/lesson/:id' ? function () { V4.lesson(page, params.id); } :
+        name === '/lesson/:id' ? function () { V3.lesson(page, params.id); } :
         name === '/vocabulary' ? function () { V3.vocabulary(page); } :
         name === '/library' ? function () { V3.library(page); } :
         name === '/book/:idx' ? function () { V3.book(page, params.idx); } :
         name === '/exams' ? function () { V3.exams(page); } :
         name === '/exam/:id' ? function () { V3.exam(page, params.id); } :
-        name === '/practice' ? function () { V4.practice(page); } :
+        name === '/practice' ? function () { V5.practice(page); } :
+        name === '/study/:mode' ? function () { V5.study(page, params.mode); } :
         name === '/ai-tutor' ? function () { V4.aiTutor(page); } :
         name === '/community' ? function () { V4.community(page); } :
         name === '/progress' ? function () { V4.progress(page); } :
@@ -140,7 +141,7 @@
 
     // routes (hash-based)
     ['/', '/courses', '/practice', '/ai-tutor', '/community', '/exams', '/progress', '/profile', '/settings', '/admin',
-     '/syllabus/:level', '/lesson/:id', '/vocabulary', '/library', '/book/:idx', '/exam/:id'].forEach(function (p) {
+     '/syllabus/:level', '/lesson/:id', '/vocabulary', '/library', '/book/:idx', '/exam/:id', '/study/:mode'].forEach(function (p) {
       window.Router.on(p, function () { App.render(); });
     });
 
