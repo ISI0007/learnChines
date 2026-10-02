@@ -82,25 +82,25 @@
       var cur = window.Router.current || { name: '/', params: {} };
       var name = cur.name || '/', params = cur.params || {};
       var page = window.UI.el('div', 'page');
-      var V = window.Views, V3 = window.Views3;
+      var V = window.Views, V3 = window.Views3, V4 = window.Views4;
       var fn =
-        name === '/' ? function () { V.home(page); } :
-        name === '/courses' ? function () { V3.courses(page); } :
-        name === '/syllabus/:level' ? function () { V3.syllabus(page, params.level); } :
-        name === '/lesson/:id' ? function () { V3.lesson(page, params.id); } :
+        name === '/' ? function () { V4.home(page); } :
+        name === '/courses' ? function () { V4.courses(page); } :
+        name === '/syllabus/:level' ? function () { V4.syllabus(page, params.level); } :
+        name === '/lesson/:id' ? function () { V4.lesson(page, params.id); } :
         name === '/vocabulary' ? function () { V3.vocabulary(page); } :
         name === '/library' ? function () { V3.library(page); } :
         name === '/book/:idx' ? function () { V3.book(page, params.idx); } :
         name === '/exams' ? function () { V3.exams(page); } :
         name === '/exam/:id' ? function () { V3.exam(page, params.id); } :
-        name === '/practice' ? function () { V.practice(page); } :
-        name === '/ai-tutor' ? function () { V.aiTutor(page); } :
-        name === '/community' ? function () { V.community(page); } :
-        name === '/progress' ? function () { V.progress(page); } :
+        name === '/practice' ? function () { V4.practice(page); } :
+        name === '/ai-tutor' ? function () { V4.aiTutor(page); } :
+        name === '/community' ? function () { V4.community(page); } :
+        name === '/progress' ? function () { V4.progress(page); } :
         name === '/profile' ? function () { V.profile(page); } :
         name === '/settings' ? function () { V.settings(page); } :
         name === '/admin' ? function () { V.admin(page); } :
-        function () { V.home(page); };
+        function () { V4.home(page); };
       fn();
       window.UI.mount(view, [page]);
       App.refreshChrome();
