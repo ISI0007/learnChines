@@ -39,6 +39,17 @@
     logout: function () { return request('POST', '/api/logout'); },
     changePassword: function (currentPassword, newPassword) { return request('POST', '/api/change-password', { currentPassword: currentPassword, newPassword: newPassword }); },
 
+    // auth: sessions + 2FA + providers (Spec §77)
+    sessions: function () { return request('GET', '/api/auth/sessions'); },
+    revokeSession: function (id) { return request('POST', '/api/auth/sessions/revoke', { id: id }); },
+    revokeOtherSessions: function () { return request('POST', '/api/auth/sessions/revoke', { others: true }); },
+    twoFAStatus: function () { return request('GET', '/api/auth/2fa'); },
+    twoFASetup: function (password) { return request('POST', '/api/auth/2fa/setup', { password: password }); },
+    twoFAEnable: function (code) { return request('POST', '/api/auth/2fa/enable', { code: code }); },
+    twoFADisable: function (password, code) { return request('POST', '/api/auth/2fa/disable', { password: password, code: code }); },
+    login2FA: function (challenge, code) { return request('POST', '/api/auth/2fa/verify', { challenge: challenge, code: code }); },
+    providers: function () { return request('GET', '/api/auth/providers'); },
+
     // learning
     getProgress: function () { return request('GET', '/api/progress'); },
     putProgress: function (progress) { return request('PUT', '/api/progress', { progress: progress }); },

@@ -2,6 +2,9 @@
 // API handlers. Each writes a JSON envelope: success:{success,data} / error:{success,error:{code,message}}.
 const db = require('./db');
 const auth = require('./auth');
+const totp = require('./totp');
+const secretbox = require('./secretbox');
+const oauth = require('./oauth');
 
 const USERNAME_RE = /^[a-zA-Z0-9_.-]{3,24}$/;
 
@@ -133,12 +136,20 @@ function register(ctx) {
 
 function login(ctx) {
   const { res, body } = ctx;
-  if (ctx.rateLimit('login', 12, 5 * 60 * 1000)) return fail(res, 429, 'RATE_LIMITED', 'Too many attempts. Try again shortly.');
   const username = String(body.username || '').trim().toLowerCase();
   const password = String(body.password || '');
   const u = db.findUserByName(username);
-  if (!u || !auth.verifyPassword(password, u.salt, u.hash)) return fail(res, 401, 'BAD_CREDENTIALS', 'Incorrect username or password');
+  if (!u || !auth.verifyPassword(password, u.salt, u.hash)) {
+    // Rate-limit only failed attempts, so repeated legitimate sign-ins are never blocked.
+    if (ctx.rateLimit('login', 20, 5 * 60 * 1000)) return fail(res, 429, 'RATE_LIMITED', 'Too many failed attempts. Try again shortly.');
+    return fail(res, 401, 'BAD_CREDENTIALS', 'Incorrect username or password');
+  }
   if (u.suspended) return fail(res, 403, 'ACCOUNT_SUSPENDED', 'This account is suspended. Contact an administrator.');
+  // Two-factor: hand back a short-lived challenge instead of a session (Spec §77).
+  if (u.twoFA && u.twoFA.enabled && u.twoFA.secret) {
+    const challenge = auth.createChallenge(u.id, { ua: ctx.req.headers['user-agent'] });
+    return ok(res, { twoFA: true, challenge: challenge, expiresIn: Math.round(auth.CHALLENGE_MS / 1000) });
+  }
   touchDay(u);
   u.lastLoginAt = new Date().toISOString();
   u.loginCount = (u.loginCount || 0) + 1;
@@ -573,4 +584,104 @@ function adminTranslationSave(ctx) {
   ok(ctx.res, { lang: lang, hanzi: hanzi, status: status, updatedAt: bucket[hanzi].updatedAt });
 }
 
-module.exports = { register, login, logout, me, getProgress, putProgress, postActivity, changePassword, getSettings, putSettings, listPosts, createPost, getPost, likePost, commentPost, deletePost, reportPost, publicTranslations, adminUsers, adminUser, adminSessions, adminStats, adminUserAction, adminModeration, adminComments, adminDeleteComment, adminTranslationStats, adminTranslationSearch, adminTranslationSave, fail, ok };
+// ── auth management: sessions + 2FA + providers (Spec §77) ──
+function listSessions(ctx) {
+  const now = Date.now();
+  const list = auth.userSessions(ctx.user.id).map(({ token, session }) => ({
+    id: secretbox.tokenId(token),
+    created: session.created ? new Date(session.created).toISOString() : null,
+    lastSeen: session.lastSeen ? new Date(session.lastSeen).toISOString() : null,
+    expires: session.expires ? new Date(session.expires).toISOString() : null,
+    daysLeft: session.expires ? Math.max(0, Math.round((session.expires - now) / 86400000)) : 0,
+    ua: session.ua || '',
+    current: token === ctx.sessionToken,
+  })).sort((a, b) => (b.lastSeen || '').localeCompare(a.lastSeen || ''));
+  ok(ctx.res, { sessions: list, count: list.length });
+}
+function revokeSession(ctx) {
+  const b = ctx.body || {};
+  if (b.others) {
+    const n = auth.destroyOtherSessions(ctx.user.id, ctx.sessionToken);
+    pushActivity(ctx.user, 'security', 'Signed out ' + n + ' other session(s)');
+    db.saveUsers();
+    return ok(ctx.res, { revoked: n, others: true });
+  }
+  const id = String(b.id || '');
+  if (!id) return fail(ctx.res, 400, 'BAD_REQUEST', 'Session id required');
+  const done = auth.destroySessionById(ctx.user.id, id);
+  if (!done) return fail(ctx.res, 404, 'NOT_FOUND', 'Session not found');
+  ok(ctx.res, { revoked: 1 });
+}
+
+function twoFAStatus(ctx) {
+  const t = ctx.user.twoFA || {};
+  ok(ctx.res, { enabled: !!t.enabled, recoveryRemaining: (t.recovery || []).filter((r) => !r.used).length, available: true });
+}
+function matchRecovery(t, code) {
+  const h = secretbox.hashCode(code);
+  for (const r of (t.recovery || [])) { if (!r.used && r.h === h) { r.used = true; return true; } }
+  return false;
+}
+function twoFASetup(ctx) {
+  if (!auth.verifyPassword(String((ctx.body && ctx.body.password) || ''), ctx.user.salt, ctx.user.hash)) {
+    return fail(ctx.res, 401, 'BAD_PASSWORD', 'Password is incorrect');
+  }
+  const secret = totp.newSecret();
+  if (!ctx.user.twoFA || typeof ctx.user.twoFA !== 'object') ctx.user.twoFA = { enabled: false, secret: '', pending: '', recovery: [], enabledAt: null };
+  ctx.user.twoFA.pending = secretbox.encrypt(secret);
+  db.saveUsers();
+  ok(ctx.res, { secret: secret, otpauth: totp.otpauthUri(secret, ctx.user.username, 'Hanxue Classroom') });
+}
+function twoFAEnable(ctx) {
+  const t = ctx.user.twoFA || {};
+  if (!t.pending) return fail(ctx.res, 400, 'NO_SETUP', 'Start setup first');
+  const secret = secretbox.decrypt(t.pending);
+  if (!totp.verify(secret, (ctx.body && ctx.body.code) || '')) return fail(ctx.res, 400, 'BAD_CODE', 'That code is not valid');
+  const codes = totp.newRecoveryCodes(10);
+  ctx.user.twoFA = { enabled: true, secret: secretbox.encrypt(secret), pending: '', recovery: codes.map((c) => ({ h: secretbox.hashCode(c), used: false })), enabledAt: new Date().toISOString() };
+  pushActivity(ctx.user, 'security', 'Two-factor authentication enabled');
+  db.saveUsers();
+  ok(ctx.res, { enabled: true, recoveryCodes: codes });
+}
+function twoFADisable(ctx) {
+  const t = ctx.user.twoFA || {};
+  if (!auth.verifyPassword(String((ctx.body && ctx.body.password) || ''), ctx.user.salt, ctx.user.hash)) {
+    return fail(ctx.res, 401, 'BAD_PASSWORD', 'Password is incorrect');
+  }
+  const code = String((ctx.body && ctx.body.code) || '');
+  const secret = secretbox.decrypt(t.secret);
+  if (t.enabled && !totp.verify(secret, code) && !matchRecovery(t, code)) return fail(ctx.res, 400, 'BAD_CODE', 'Enter a valid code or recovery code');
+  ctx.user.twoFA = { enabled: false, secret: '', pending: '', recovery: [], enabledAt: null };
+  pushActivity(ctx.user, 'security', 'Two-factor authentication disabled');
+  db.saveUsers();
+  ok(ctx.res, { enabled: false });
+}
+function login2FA(ctx) {
+  const b = ctx.body || {};
+  if (ctx.rateLimit('login2fa', 20, 5 * 60 * 1000)) return fail(ctx.res, 429, 'RATE_LIMITED', 'Too many attempts. Try again shortly.');
+  const c = auth.consumeChallenge(String(b.challenge || ''));
+  if (!c) return fail(ctx.res, 400, 'CHALLENGE_EXPIRED', 'This sign-in attempt expired. Sign in again.');
+  const u = db.findUserById(c.userId);
+  if (!u || !u.twoFA || !u.twoFA.enabled) return fail(ctx.res, 400, 'BAD_STATE', 'Two-factor is not active');
+  c.attempts = (c.attempts || 0) + 1;
+  if (c.attempts > 6) { auth.clearChallenge(String(b.challenge)); return fail(ctx.res, 429, 'RATE_LIMITED', 'Too many attempts. Sign in again.'); }
+  const code = String(b.code || '');
+  const secret = secretbox.decrypt(u.twoFA.secret);
+  const okTotp = totp.verify(secret, code);
+  const okRecovery = !okTotp && matchRecovery(u.twoFA, code);
+  if (!okTotp && !okRecovery) return fail(ctx.res, 401, 'BAD_CODE', 'Invalid code');
+  auth.clearChallenge(String(b.challenge));
+  touchDay(u);
+  u.lastLoginAt = new Date().toISOString();
+  u.loginCount = (u.loginCount || 0) + 1;
+  pushActivity(u, 'login', 'Signed in with 2FA' + (okRecovery ? ' (recovery code)' : ''));
+  db.saveUsers();
+  const token = auth.createSession(u.id, { ua: ctx.req.headers['user-agent'] });
+  ctx.setSession(token);
+  ok(ctx.res, { user: auth.publicUser(u), token: token });
+}
+function oauthProviders(ctx) {
+  ok(ctx.res, { providers: oauth.list() });
+}
+
+module.exports = { register, login, logout, me, getProgress, putProgress, postActivity, changePassword, getSettings, putSettings, listPosts, createPost, getPost, likePost, commentPost, deletePost, reportPost, publicTranslations, listSessions, revokeSession, twoFAStatus, twoFASetup, twoFAEnable, twoFADisable, login2FA, oauthProviders, adminUsers, adminUser, adminSessions, adminStats, adminUserAction, adminModeration, adminComments, adminDeleteComment, adminTranslationStats, adminTranslationSearch, adminTranslationSave, fail, ok };

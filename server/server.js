@@ -114,7 +114,7 @@ function serveStatic(req, res, urlPath) {
 }
 
 // ── routing ──
-const AUTH_REQUIRED = new Set(['me', 'getProgress', 'putProgress', 'postActivity', 'changePassword', 'getSettings', 'putSettings', 'createPost', 'likePost', 'commentPost', 'deletePost', 'reportPost', 'adminUsers', 'adminUser', 'adminSessions', 'adminStats', 'adminUserAction', 'adminModeration', 'adminComments', 'adminDeleteComment', 'adminTranslationStats', 'adminTranslationSearch', 'adminTranslationSave']);
+const AUTH_REQUIRED = new Set(['me', 'getProgress', 'putProgress', 'postActivity', 'changePassword', 'getSettings', 'putSettings', 'listSessions', 'revokeSession', 'twoFAStatus', 'twoFASetup', 'twoFAEnable', 'twoFADisable', 'createPost', 'likePost', 'commentPost', 'deletePost', 'reportPost', 'adminUsers', 'adminUser', 'adminSessions', 'adminStats', 'adminUserAction', 'adminModeration', 'adminComments', 'adminDeleteComment', 'adminTranslationStats', 'adminTranslationSearch', 'adminTranslationSave']);
 
 async function handleApi(req, res, url) {
   const p = url.pathname;
@@ -152,6 +152,14 @@ async function handleApi(req, res, url) {
   else if (p === '/api/change-password' && method === 'POST') route = 'changePassword';
   else if (p === '/api/settings' && method === 'GET') route = 'getSettings';
   else if (p === '/api/settings' && method === 'PUT') route = 'putSettings';
+  else if (p === '/api/auth/sessions' && method === 'GET') route = 'listSessions';
+  else if (p === '/api/auth/sessions/revoke' && method === 'POST') route = 'revokeSession';
+  else if (p === '/api/auth/2fa' && method === 'GET') route = 'twoFAStatus';
+  else if (p === '/api/auth/2fa/setup' && method === 'POST') route = 'twoFASetup';
+  else if (p === '/api/auth/2fa/enable' && method === 'POST') route = 'twoFAEnable';
+  else if (p === '/api/auth/2fa/disable' && method === 'POST') route = 'twoFADisable';
+  else if (p === '/api/auth/2fa/verify' && method === 'POST') route = 'login2FA';
+  else if (p === '/api/auth/providers' && method === 'GET') route = 'oauthProviders';
   else if (p === '/api/posts' && method === 'GET') route = 'listPosts';
   else if (p === '/api/posts' && method === 'POST') route = 'createPost';
   else if (p === '/api/admin/users' && method === 'GET') route = 'adminUsers';

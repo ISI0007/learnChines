@@ -127,7 +127,10 @@
     signIn: function (username, password, displayName) {
       var fn = displayName != null ? window.API.register(username, password, displayName) : window.API.login(username, password);
       return fn.then(function (r) {
-        if (r.ok && r.success) { window.API.setToken(r.data.token); return store.load().then(function () { return { ok: true, user: S.user }; }); }
+        if (r.ok && r.success) {
+          if (r.data && r.data.twoFA) return { ok: false, twoFA: true, challenge: r.data.challenge };
+          window.API.setToken(r.data.token); return store.load().then(function () { return { ok: true, user: S.user }; });
+        }
         return { ok: false, error: (r.error && r.error.message) || 'Sign-in failed', code: r.error && r.error.code };
       });
     },

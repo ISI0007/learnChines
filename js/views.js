@@ -208,10 +208,125 @@
         r.appendChild(U.button('Sign out', { onClick: function () { window.Store.signOut(); } }));
         act.appendChild(r);
         wrap.appendChild(act);
+        securitySection(wrap);
       }
       mount.appendChild(wrap);
     },
   };
+
+  // ── Security: active sessions + two-factor (Spec §77) ──
+  function ago(iso) {
+    if (!iso) return '—';
+    var s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 60) return 'just now';
+    if (s < 3600) return Math.floor(s / 60) + 'm ago';
+    if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+    return Math.floor(s / 86400) + 'd ago';
+  }
+  function uaLabel(ua) {
+    var u = (ua || '').toLowerCase();
+    if (!u) return 'Unknown device';
+    var os = /windows/.test(u) ? 'Windows' : /mac os|macintosh/.test(u) ? 'macOS' : /android/.test(u) ? 'Android' : /iphone|ipad|ios/.test(u) ? 'iOS' : /linux/.test(u) ? 'Linux' : 'Unknown OS';
+    var br = /edg\//.test(u) ? 'Edge' : /chrome\//.test(u) ? 'Chrome' : /firefox\//.test(u) ? 'Firefox' : /safari\//.test(u) ? 'Safari' : 'Browser';
+    return br + ' · ' + os;
+  }
+  function securitySection(wrap) {
+    var el = window.UI.el, U = window.UI;
+    var card = el('div', 'ui-card'); card.style.marginTop = '16px';
+    card.appendChild(el('div', 'ui-h3', 'Security'));
+
+    // active sessions
+    var sHead = el('div'); sHead.style.cssText = 'display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:6px';
+    sHead.appendChild(el('div', 'ui-muted', 'Devices signed in to your account.'));
+    sHead.appendChild(U.button('Sign out other sessions', { variant: 'ghost', onClick: function () {
+      window.API.revokeOtherSessions().then(function (r) { U.toast(r.ok ? 'Signed out other sessions' : 'Could not sign out'); loadSessions(); });
+    } }));
+    card.appendChild(sHead);
+    var sList = el('div'); sList.style.marginTop = '8px'; card.appendChild(sList);
+    function loadSessions() {
+      U.clear(sList); sList.appendChild(U.loading(2));
+      window.API.sessions().then(function (r) {
+        U.clear(sList);
+        if (!r.ok || !r.success) { sList.appendChild(U.error('Could not load sessions')); return; }
+        (r.data.sessions || []).forEach(function (s) {
+          var row = el('div', 'hx-check'); row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:10px';
+          var left = el('div'); left.style.flex = '1';
+          var title = el('div'); title.style.fontWeight = '600';
+          title.textContent = uaLabel(s.ua) + (s.current ? '  (this device)' : '');
+          left.appendChild(title);
+          left.appendChild(el('div', 'ui-muted', 'Last active ' + ago(s.lastSeen) + ' · ' + s.daysLeft + 'd left'));
+          row.appendChild(left);
+          if (!s.current) row.appendChild(U.button('Revoke', { variant: 'ghost', onClick: function () {
+            window.API.revokeSession(s.id).then(function (rr) { U.toast(rr.ok ? 'Session revoked' : 'Could not revoke'); loadSessions(); });
+          } }));
+          else row.appendChild(U.badge('current', 'green'));
+          sList.appendChild(row);
+        });
+      }).catch(function () { U.clear(sList); sList.appendChild(U.error('Could not load sessions')); });
+    }
+
+    // two-factor
+    var two = el('div'); two.style.marginTop = '18px'; card.appendChild(two);
+    function render2FA(st) {
+      U.clear(two);
+      var head = el('div'); head.style.cssText = 'display:flex;justify-content:space-between;align-items:center;gap:8px';
+      head.appendChild(el('div', 'ui-h3', 'Two-factor authentication'));
+      head.appendChild(U.badge(st.enabled ? 'on' : 'off', st.enabled ? 'green' : ''));
+      two.appendChild(head);
+      if (st.enabled) {
+        two.appendChild(el('p', 'ui-muted', 'Authenticator app required at sign-in. ' + st.recoveryRemaining + ' recovery code(s) left.'));
+        var r2 = el('div', 'ui-row'); r2.style.marginTop = '10px';
+        r2.appendChild(U.button('Disable 2FA', { variant: 'ghost', onClick: function () {
+          var pw = window.prompt('Confirm your password to disable 2FA:');
+          if (pw == null) return;
+          var code = window.prompt('Enter a current authenticator code (or a recovery code):') || '';
+          window.API.twoFADisable(pw, code).then(function (r) { if (r.ok && r.success) { U.toast('2FA disabled'); render2FA({ enabled: false }); } else U.toast((r.error && r.error.message) || 'Could not disable'); });
+        } }));
+        two.appendChild(r2);
+        return;
+      }
+      two.appendChild(el('p', 'ui-muted', 'Add a second step at sign-in using any authenticator app. Works fully offline.'));
+      var btn = U.button('Enable 2FA', { variant: 'primary', onClick: function () {
+        var pw = window.prompt('Confirm your password to begin 2FA setup:');
+        if (pw == null) return;
+        window.API.twoFASetup(pw).then(function (r) {
+          if (!r.ok || !r.success) { U.toast((r.error && r.error.message) || 'Could not start setup'); return; }
+          show2FASetup(two, r.data.otpauth, r.data.secret, render2FA);
+        });
+      } });
+      var rr = el('div', 'ui-row'); rr.style.marginTop = '10px'; rr.appendChild(btn); two.appendChild(rr);
+    }
+    function show2FASetup(host, otpauth, secret, onDone) {
+      U.clear(host);
+      host.appendChild(el('div', 'ui-h3', 'Scan or enter this key'));
+      host.appendChild(el('p', 'ui-muted', 'Add it to Google Authenticator, Authy, 1Password, or any TOTP app.'));
+      var uri = el('div', null, U.esc(otpauth)); uri.style.cssText = 'font-size:12px;word-break:break-all;background:var(--bg-2,rgba(15,23,42,.05));padding:8px;border-radius:8px;margin:8px 0';
+      host.appendChild(uri);
+      var key = el('div'); key.style.cssText = 'font-size:22px;letter-spacing:2px;font-weight:700;margin:6px 0';
+      key.textContent = secret.replace(/(.{4})/g, '$1 ').trim(); host.appendChild(key);
+      var code = el('input', 'hx-input'); code.placeholder = 'Enter the 6-digit code to confirm'; code.setAttribute('inputmode', 'numeric');
+      host.appendChild(code);
+      var bar = el('div', 'ui-row'); bar.style.marginTop = '10px';
+      bar.appendChild(U.button('Confirm & enable', { variant: 'primary', onClick: function () {
+        window.API.twoFAEnable(code.value.trim()).then(function (r) {
+          if (!r.ok || !r.success) { U.toast((r.error && r.error.message) || 'Invalid code'); return; }
+          U.clear(host);
+          host.appendChild(el('div', 'ui-h3', 'Save your recovery codes'));
+          host.appendChild(el('p', 'ui-muted', 'Each code works once if you lose your device. Store them somewhere safe.'));
+          var box = el('div'); box.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0;font-family:monospace';
+          (r.data.recoveryCodes || []).forEach(function (c) { box.appendChild(el('div', null, U.esc(c))); });
+          host.appendChild(box);
+          var bb = el('div', 'ui-row'); bb.appendChild(U.button('I saved them', { variant: 'primary', onClick: function () { onDone({ enabled: true, recoveryRemaining: (r.data.recoveryCodes || []).length }); } }));
+          host.appendChild(bb);
+        });
+      } }));
+      bar.appendChild(U.button('Cancel', { variant: 'ghost', onClick: function () { render2FA({ enabled: false }); } }));
+      host.appendChild(bar);
+    }
+
+    loadSessions();
+    window.API.twoFAStatus().then(function (r) { render2FA(r.ok && r.success ? r.data : { enabled: false }); }).catch(function () { render2FA({ enabled: false }); });
+  }
 
   window.Views = Views;
 })();
