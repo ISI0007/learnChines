@@ -78,6 +78,7 @@ function publicUser(u) {
   return {
     id: u.id, username: u.username, displayName: u.displayName, role: u.role,
     createdAt: u.createdAt, lastLoginAt: u.lastLoginAt, loginCount: u.loginCount || 0,
+    suspended: !!u.suspended,
   };
 }
 

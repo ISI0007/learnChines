@@ -8,8 +8,9 @@ const { DATA_DIR } = require('../config');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const SESS_FILE = path.join(DATA_DIR, 'sessions.json');
 const POSTS_FILE = path.join(DATA_DIR, 'posts.json');
+const BANS_FILE = path.join(DATA_DIR, 'bans.json');
 
-const state = { users: [], sessions: {}, posts: [] };
+const state = { users: [], sessions: {}, posts: [], bans: [] };
 
 function ensureDir() { fs.mkdirSync(DATA_DIR, { recursive: true }); }
 
@@ -25,6 +26,7 @@ function writeJson(file, obj) {
 function saveUsers() { writeJson(USERS_FILE, { users: state.users }); }
 function saveSessions() { writeJson(SESS_FILE, { sessions: state.sessions }); }
 function savePosts() { writeJson(POSTS_FILE, { posts: state.posts }); }
+function saveBans() { writeJson(BANS_FILE, { bans: state.bans }); }
 function newId() { return crypto.randomBytes(8).toString('hex'); }
 
 function defaultSettings() {
@@ -60,6 +62,8 @@ function load() {
   state.sessions = (s && s.sessions) || {};
   const pj = readJson(POSTS_FILE, { posts: [] });
   state.posts = Array.isArray(pj.posts) ? pj.posts : [];
+  const bj = readJson(BANS_FILE, { bans: [] });
+  state.bans = Array.isArray(bj.bans) ? bj.bans : [];
   const now = Date.now();
   let changed = false;
   for (const k of Object.keys(state.sessions)) {
@@ -73,6 +77,14 @@ function findUserByName(name) {
   return state.users.find((u) => u.username === n) || null;
 }
 function findUserById(id) { return state.users.find((u) => u.id === id) || null; }
+
+function deleteUser(id) {
+  const i = state.users.findIndex((u) => u.id === id);
+  if (i === -1) return false;
+  state.users.splice(i, 1);
+  saveUsers();
+  return true;
+}
 
 function createUser(opts) {
   const u = {
@@ -94,6 +106,6 @@ function createUser(opts) {
 }
 
 module.exports = {
-  state, load, saveUsers, saveSessions, savePosts, newId,
-  findUserByName, findUserById, createUser, defaultProgress, defaultSettings, ensureDir,
+  state, load, saveUsers, saveSessions, savePosts, saveBans, newId,
+  findUserByName, findUserById, createUser, deleteUser, defaultProgress, defaultSettings, ensureDir,
 };

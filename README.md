@@ -20,6 +20,9 @@ internet needed.**
 - **Speaking practice** — repeat sentences aloud; scored by the browser's speech
   recognition where available, or typed comparison as a fallback
 - **Progress dashboard** — XP, streak, words known, weekly chart, achievements
+- **Admin CMS** — analytics (active users, study activity, words by level), user
+  management (search/filter, suspend/restore, roles, delete), content inventory,
+  community moderation (report queue, remove posts/comments), and session viewer
 - **Accounts** — username + password (scrypt), per-user progress, admin dashboard
 
 ## Run it
@@ -67,6 +70,7 @@ With the server running:
 node tools/verify-phase23.mjs   # data integrity, auth guards, settings API
 node tools/verify-phase4.mjs    # spaced-repetition engine + study routes
 node tools/verify-phase56.mjs   # community posts API + confirms no AI surface
+node tools/verify-admin.mjs     # admin CMS: analytics, user mgmt, moderation
 node tools/verify-sessions.mjs  # auth + session lifecycle
 ```
 
@@ -83,5 +87,5 @@ Built module-by-module from a 130-section master spec. Done: **Phase 1**
 (shell, design system, i18n, router, auth), **Phase 2** (language onboarding),
 **Phase 3** (courses, vocabulary, library, exams), **Phase 4** (practice/quiz
 engine with spaced repetition), **Phase 5/6** (real community posts backend +
-speaking practice), plus a collage-matched UI pass. The app is fully
-self-contained and works with no network. Next: admin CMS and content tooling.
+speaking practice), **Phase 11** (admin CMS), plus a collage-matched UI pass. The
+app is fully self-contained and works with no network. Next: admin CMS and content tooling.

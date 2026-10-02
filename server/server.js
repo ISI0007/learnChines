@@ -114,7 +114,7 @@ function serveStatic(req, res, urlPath) {
 }
 
 // ── routing ──
-const AUTH_REQUIRED = new Set(['me', 'getProgress', 'putProgress', 'postActivity', 'changePassword', 'getSettings', 'putSettings', 'createPost', 'likePost', 'commentPost', 'deletePost', 'adminUsers', 'adminUser', 'adminSessions']);
+const AUTH_REQUIRED = new Set(['me', 'getProgress', 'putProgress', 'postActivity', 'changePassword', 'getSettings', 'putSettings', 'createPost', 'likePost', 'commentPost', 'deletePost', 'reportPost', 'adminUsers', 'adminUser', 'adminSessions', 'adminStats', 'adminUserAction', 'adminModeration', 'adminComments', 'adminDeleteComment']);
 
 async function handleApi(req, res, url) {
   const p = url.pathname;
@@ -156,15 +156,24 @@ async function handleApi(req, res, url) {
   else if (p === '/api/posts' && method === 'POST') route = 'createPost';
   else if (p === '/api/admin/users' && method === 'GET') route = 'adminUsers';
   else if (p === '/api/admin/sessions' && method === 'GET') route = 'adminSessions';
+  else if (p === '/api/admin/stats' && method === 'GET') route = 'adminStats';
+  else if (p === '/api/admin/moderation' && method === 'GET') route = 'adminModeration';
+  else if (p === '/api/admin/comments' && method === 'GET') route = 'adminComments';
   else {
     let pm = /^\/api\/posts\/([a-f0-9]{1,32})$/.exec(p);
     if (pm && method === 'GET') { route = 'getPost'; ctx.params.id = pm[1]; }
     else if (pm && method === 'DELETE') { route = 'deletePost'; ctx.params.id = pm[1]; }
     else if ((pm = /^\/api\/posts\/([a-f0-9]{1,32})\/like$/.exec(p)) && method === 'POST') { route = 'likePost'; ctx.params.id = pm[1]; }
     else if ((pm = /^\/api\/posts\/([a-f0-9]{1,32})\/comments$/.exec(p)) && method === 'POST') { route = 'commentPost'; ctx.params.id = pm[1]; }
+    else if ((pm = /^\/api\/posts\/([a-f0-9]{1,32})\/report$/.exec(p)) && method === 'POST') { route = 'reportPost'; ctx.params.id = pm[1]; }
     else {
       const m = /^\/api\/admin\/users\/([A-Za-z0-9-]{1,64})$/.exec(p);
       if (m && method === 'GET') { route = 'adminUser'; ctx.params.id = m[1]; }
+      else if (m && method === 'POST') { route = 'adminUserAction'; ctx.params.id = m[1]; }
+      else {
+        const mc = /^\/api\/admin\/posts\/([a-f0-9]{1,32})\/comments\/([a-f0-9]{1,32})$/.exec(p);
+        if (mc && method === 'DELETE') { route = 'adminDeleteComment'; ctx.params.id = mc[1]; ctx.params.cid = mc[2]; }
+      }
     }
   }
 

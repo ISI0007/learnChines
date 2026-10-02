@@ -141,6 +141,16 @@
     ac.appendChild(likeBtn);
     var cCount = el('span', null, '💬 ' + (p.comments || 0));
     ac.appendChild(cCount);
+    var rep = el('span', null, '⚑ Report');
+    rep.style.cursor = 'pointer'; rep.style.marginLeft = 'auto'; rep.style.color = 'var(--text-2)';
+    rep.addEventListener('click', function () {
+      if (!signedIn()) return U.toast('Sign in to report');
+      window.API.reportPost(p.id).then(function (r) {
+        if (r.ok && r.success) { rep.textContent = '⚑ Reported'; rep.style.color = 'var(--cn-red)'; U.toast('Thanks — a moderator will review this.'); }
+        else U.toast('Could not report post');
+      });
+    });
+    ac.appendChild(rep);
     b.appendChild(ac);
 
     var comments = el('div'); comments.style.display = 'none'; comments.style.marginTop = '10px';

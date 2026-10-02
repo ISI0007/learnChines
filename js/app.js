@@ -100,7 +100,7 @@
         name === '/progress' ? function () { V4.progress(page); } :
         name === '/profile' ? function () { V.profile(page); } :
         name === '/settings' ? function () { V.settings(page); } :
-        name === '/admin' ? function () { V.admin(page); } :
+        name === '/admin' ? function () { (window.V7 || { admin: V.admin }).admin(page); } :
         function () { V4.home(page); };
       fn();
       window.UI.mount(view, [page]);

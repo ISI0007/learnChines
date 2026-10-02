@@ -205,65 +205,6 @@
       }
       mount.appendChild(wrap);
     },
-    admin: function (mount) {
-      var U = window.UI, S = window.Store.state;
-      var wrap = el('div', 'section');
-      wrap.appendChild(el('h1', 'ui-h1', t('nav.admin')));
-      if (!(S.user && S.user.role === 'admin')) { wrap.appendChild(U.empty('Admins only', 'You do not have access to this page.')); mount.appendChild(wrap); return; }
-      var box = el('div'); box.id = 'adminBox'; box.style.marginTop = '16px';
-      box.appendChild(U.loading(4));
-      wrap.appendChild(box);
-      mount.appendChild(wrap);
-      window.API.adminUsers().then(function (r) {
-        U.clear(box);
-        if (!r.ok || !r.success) { box.appendChild(U.error('Could not load users')); return; }
-        var users = r.data.users || [];
-        var g = el('div', 'ui-grid cols-4');
-        g.appendChild(U.stat(String(users.length), 'Accounts', 'total', 'blue'));
-        g.appendChild(U.stat(String(users.filter(function (u) { return u.role !== 'admin'; }).length), 'Learners', '', 'green'));
-        g.appendChild(U.stat(String(users.reduce(function (a, u) { return a + (u.xp || 0); }, 0)), 'Total XP', '', 'amber'));
-        box.appendChild(g);
-        var card = U.card([]); card.style.marginTop = '16px';
-        var tbl = el('table'); tbl.style.cssText = 'width:100%;border-collapse:collapse;font-size:13.5px';
-        var head = el('tr');
-        ['User', 'Role', 'Words', 'XP', 'Streak', 'Quizzes', 'Study days'].forEach(function (h) { var th = el('th', null, h); th.style.cssText = 'text-align:left;color:var(--text-2);padding:9px;border-bottom:1px solid var(--border)'; head.appendChild(th); });
-        var thead = el('thead'); thead.appendChild(head); tbl.appendChild(thead);
-        var tb = el('tbody');
-        users.forEach(function (u) {
-          var tr = el('tr');
-          [u.displayName || u.username, u.role, u.known, u.xp, u.streak, u.quizzes, u.studyDays].forEach(function (v) {
-            var td = el('td', null, window.UI.esc(String(v)));
-            td.style.cssText = 'padding:9px;border-bottom:1px solid var(--border)';
-            tr.appendChild(td);
-          });
-          tb.appendChild(tr);
-        });
-        tbl.appendChild(tb); card.appendChild(tbl); box.appendChild(card);
-
-        // active sessions
-        window.API.adminSessions().then(function (sr) {
-          if (!sr.ok || !sr.success) return;
-          var sess = sr.data.sessions || [];
-          var sc = U.card([]); sc.style.marginTop = '16px';
-          sc.appendChild(el('div', 'ui-h3', 'Active sessions (' + sess.filter(function (s) { return s.active; }).length + ')'));
-          var st = el('table'); st.style.cssText = 'width:100%;border-collapse:collapse;font-size:13.5px;margin-top:8px';
-          var sh = el('tr');
-          ['User', 'Role', 'Last seen', 'Days left'].forEach(function (h) { var th = el('th', null, h); th.style.cssText = 'text-align:left;color:var(--text-2);padding:9px;border-bottom:1px solid var(--border)'; sh.appendChild(th); });
-          var shd = el('thead'); shd.appendChild(sh); st.appendChild(shd);
-          var sb = el('tbody');
-          sess.slice(0, 30).forEach(function (s) {
-            var tr = el('tr');
-            [s.displayName || s.username, s.role, s.lastSeen ? timeAgoShort(s.lastSeen) : '—', s.active ? s.daysLeft + 'd' : 'expired'].forEach(function (v) {
-              var td = el('td', null, window.UI.esc(String(v)));
-              td.style.cssText = 'padding:9px;border-bottom:1px solid var(--border)';
-              tr.appendChild(td);
-            });
-            sb.appendChild(tr);
-          });
-          st.appendChild(sb); sc.appendChild(st); box.appendChild(sc);
-        }).catch(function () {});
-      }).catch(function () { U.clear(box); box.appendChild(U.error('Could not load users')); });
-    },
   };
 
   window.Views = Views;

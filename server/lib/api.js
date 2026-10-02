@@ -138,6 +138,7 @@ function login(ctx) {
   const password = String(body.password || '');
   const u = db.findUserByName(username);
   if (!u || !auth.verifyPassword(password, u.salt, u.hash)) return fail(res, 401, 'BAD_CREDENTIALS', 'Incorrect username or password');
+  if (u.suspended) return fail(res, 403, 'ACCOUNT_SUSPENDED', 'This account is suspended. Contact an administrator.');
   touchDay(u);
   u.lastLoginAt = new Date().toISOString();
   u.loginCount = (u.loginCount || 0) + 1;
@@ -173,6 +174,7 @@ function publicPost(p) {
     id: p.id, title: p.title, body: p.body, tag: p.tag,
     author: p.authorName, authorId: p.authorId, createdAt: p.createdAt,
     likes: (p.likes || []).length, comments: (p.comments || []).length,
+    flags: (p.flags || []).length,
   };
 }
 function listPosts(ctx) {
@@ -328,4 +330,139 @@ function adminSessions(ctx) {
   ok(ctx.res, { sessions });
 }
 
-module.exports = { register, login, logout, me, getProgress, putProgress, postActivity, changePassword, getSettings, putSettings, listPosts, createPost, getPost, likePost, commentPost, deletePost, adminUsers, adminUser, adminSessions, fail, ok };
+// ── admin CMS (Phase 11) ──
+const VOCAB_TOTAL = 2501, BOOKS_TOTAL = 42, EXAMS_TOTAL = 92, AUDIO_TOTAL = 896; // imported-library counts (tools/import-hsk.mjs)
+
+function adminStats(ctx) {
+  if (ctx.user.role !== 'admin') return fail(ctx.res, 403, 'FORBIDDEN', 'Admin only');
+  const users = db.state.users;
+  const posts = db.state.posts || [];
+  const sessions = db.state.sessions || {};
+  const now = Date.now(), day = 86400000;
+  const learners = users.filter((u) => u.role !== 'admin');
+  const suspended = users.filter((u) => u.suspended).length;
+  const last7 = [0, 0, 0, 0, 0, 0, 0];
+  const byLevel = {};
+  let xp = 0, known = 0, quizzes = 0, active7 = 0, active30 = 0, new7 = 0, studyDays = 0;
+  for (const u of users) {
+    const p = u.progress || {};
+    xp += p.xp || 0;
+    quizzes += (p.quiz && p.quiz.taken) || 0;
+    const seen = u.lastLoginAt || u.createdAt;
+    if (seen) { const age = now - new Date(seen).getTime(); if (age <= 7 * day) active7++; if (age <= 30 * day) active30++; }
+    if (u.createdAt && now - new Date(u.createdAt).getTime() <= 7 * day) new7++;
+    const days = p.studyDays || [];
+    studyDays += days.length;
+    for (const d of days) {
+      const idx = Math.floor((now - new Date(d + 'T12:00:00Z').getTime()) / day);
+      if (idx >= 0 && idx < 7) last7[6 - idx]++;
+    }
+    for (const k of Object.keys(p.known || {})) {
+      known++;
+      const m = /^(\d)/.exec(k); const l = m ? m[1] : '?';
+      byLevel[l] = (byLevel[l] || 0) + 1;
+    }
+  }
+  const tagCounts = {};
+  for (const p of posts) tagCounts[p.tag || 'general'] = (tagCounts[p.tag || 'general'] || 0) + 1;
+  const activeSessions = Object.keys(sessions).filter((k) => sessions[k] && sessions[k].expires > now).length;
+  const recent = users.slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 6)
+    .map((u) => ({ username: u.username, displayName: u.displayName, createdAt: u.createdAt, role: u.role, suspended: !!u.suspended }));
+  ok(ctx.res, {
+    users: { total: users.length, learners: learners.length, admins: users.length - learners.length, suspended, new7, active7, active30 },
+    content: { vocabulary: VOCAB_TOTAL, books: BOOKS_TOTAL, exams: EXAMS_TOTAL, audio: AUDIO_TOTAL, posts: posts.length },
+    engagement: { xp, known, quizzes, studyDays, studyMinutes: studyDays * 20 },
+    sessions: { active: activeSessions, total: Object.keys(sessions).length },
+    last7, byLevel, tagCounts, recent,
+  });
+}
+
+function adminUserAction(ctx) {
+  if (ctx.user.role !== 'admin') return fail(ctx.res, 403, 'FORBIDDEN', 'Admin only');
+  const u = db.findUserById(ctx.params.id);
+  if (!u) return fail(ctx.res, 404, 'NOT_FOUND', 'User not found');
+  const action = String((ctx.body && ctx.body.action) || '');
+  if (u.id === ctx.user.id && (action === 'suspend' || action === 'delete' || action === 'makeUser')) {
+    return fail(ctx.res, 400, 'SELF', 'You cannot change your own account this way');
+  }
+  if (action === 'suspend') {
+    if (u.role === 'admin') return fail(ctx.res, 400, 'PROTECTED', 'Administrators cannot be suspended');
+    u.suspended = true; u.suspendedAt = new Date().toISOString(); u.suspendedBy = ctx.user.username;
+    const n = auth.destroyUserSessions(u.id);
+    pushActivity(u, 'admin', 'Suspended by ' + ctx.user.username + ' (revoked ' + n + ' session(s))');
+    db.saveUsers();
+    return ok(ctx.res, { user: auth.publicUser(u), suspended: true, revoked: n });
+  }
+  if (action === 'restore' || action === 'unsuspend') {
+    u.suspended = false; delete u.suspendedAt; delete u.suspendedBy;
+    pushActivity(u, 'admin', 'Restored by ' + ctx.user.username);
+    db.saveUsers();
+    return ok(ctx.res, { user: auth.publicUser(u), suspended: false });
+  }
+  if (action === 'makeAdmin' || action === 'makeUser') {
+    u.role = action === 'makeAdmin' ? 'admin' : 'user';
+    pushActivity(u, 'admin', 'Role set to ' + u.role + ' by ' + ctx.user.username);
+    db.saveUsers();
+    return ok(ctx.res, { user: auth.publicUser(u), role: u.role });
+  }
+  if (action === 'delete') {
+    if (u.role === 'admin') return fail(ctx.res, 400, 'PROTECTED', 'Delete the admin role before removing an administrator');
+    auth.destroyUserSessions(u.id);
+    db.deleteUser(u.id);
+    return ok(ctx.res, { deleted: true, id: u.id });
+  }
+  return fail(ctx.res, 400, 'BAD_ACTION', 'Unknown action');
+}
+
+function adminModeration(ctx) {
+  if (ctx.user.role !== 'admin') return fail(ctx.res, 403, 'FORBIDDEN', 'Admin only');
+  const posts = (db.state.posts || []).slice();
+  posts.sort((a, b) => ((b.flags || []).length - (a.flags || []).length) || String(b.createdAt).localeCompare(String(a.createdAt)));
+  const items = posts.slice(0, 100).map((p) => {
+    const author = db.findUserById(p.authorId);
+    return Object.assign(publicPost(p), {
+      flags: (p.flags || []).length,
+      suspendedAuthor: !!(author && author.suspended),
+      bodyPreview: String(p.body || '').slice(0, 200),
+    });
+  });
+  ok(ctx.res, {
+    posts: items,
+    stats: { posts: posts.length, flagged: posts.filter((p) => (p.flags || []).length).length, totalFlags: posts.reduce((a, p) => a + (p.flags || []).length, 0) },
+  });
+}
+
+function adminComments(ctx) {
+  if (ctx.user.role !== 'admin') return fail(ctx.res, 403, 'FORBIDDEN', 'Admin only');
+  const out = [];
+  for (const p of (db.state.posts || [])) {
+    for (const c of (p.comments || [])) {
+      out.push({ id: c.id, postId: p.id, postTitle: p.title, body: c.body, author: c.authorName, authorId: c.authorId, createdAt: c.createdAt });
+    }
+  }
+  out.sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  ok(ctx.res, { comments: out.slice(0, 200), total: out.length });
+}
+
+function adminDeleteComment(ctx) {
+  if (ctx.user.role !== 'admin') return fail(ctx.res, 403, 'FORBIDDEN', 'Admin only');
+  const p = (db.state.posts || []).find((x) => x.id === ctx.params.id);
+  if (!p) return fail(ctx.res, 404, 'NOT_FOUND', 'Post not found');
+  const before = (p.comments || []).length;
+  p.comments = (p.comments || []).filter((c) => c.id !== ctx.params.cid);
+  if (p.comments.length === before) return fail(ctx.res, 404, 'NOT_FOUND', 'Comment not found');
+  db.savePosts();
+  ok(ctx.res, { removed: true });
+}
+
+// Users can report a post; reports feed the admin moderation queue (Spec §78 Community→Reports).
+function reportPost(ctx) {
+  const p = (db.state.posts || []).find((x) => x.id === ctx.params.id);
+  if (!p) return fail(ctx.res, 404, 'NOT_FOUND', 'Post not found');
+  if (!Array.isArray(p.flags)) p.flags = [];
+  if (!p.flags.includes(ctx.user.id)) p.flags.push(ctx.user.id);
+  db.savePosts();
+  ok(ctx.res, { flags: p.flags.length, reported: true });
+}
+
+module.exports = { register, login, logout, me, getProgress, putProgress, postActivity, changePassword, getSettings, putSettings, listPosts, createPost, getPost, likePost, commentPost, deletePost, reportPost, adminUsers, adminUser, adminSessions, adminStats, adminUserAction, adminModeration, adminComments, adminDeleteComment, fail, ok };

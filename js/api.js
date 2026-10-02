@@ -51,6 +51,7 @@
     likePost: function (id) { return request('POST', '/api/posts/' + encodeURIComponent(id) + '/like'); },
     commentPost: function (id, body) { return request('POST', '/api/posts/' + encodeURIComponent(id) + '/comments', { body: body }); },
     deletePost: function (id) { return request('DELETE', '/api/posts/' + encodeURIComponent(id)); },
+    reportPost: function (id) { return request('POST', '/api/posts/' + encodeURIComponent(id) + '/report'); },
 
     // settings (Phase 2)
     getSettings: function () { return request('GET', '/api/settings'); },
@@ -60,5 +61,10 @@
     adminUsers: function () { return request('GET', '/api/admin/users'); },
     adminUser: function (id) { return request('GET', '/api/admin/users/' + encodeURIComponent(id)); },
     adminSessions: function () { return request('GET', '/api/admin/sessions'); },
+    adminStats: function () { return request('GET', '/api/admin/stats'); },
+    adminModeration: function () { return request('GET', '/api/admin/moderation'); },
+    adminComments: function () { return request('GET', '/api/admin/comments'); },
+    adminUserAction: function (id, action) { return request('POST', '/api/admin/users/' + encodeURIComponent(id), { action: action }); },
+    adminDeleteComment: function (postId, cid) { return request('DELETE', '/api/admin/posts/' + encodeURIComponent(postId) + '/comments/' + encodeURIComponent(cid)); },
   };
 })();
