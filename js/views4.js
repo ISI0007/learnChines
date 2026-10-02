@@ -123,31 +123,44 @@
   }
 
   // ───────────────────────── COURSES (catalog) ─────────────────────────
+  var SKILL_LINKS = [
+    { n: 'Speaking', ic: '🗣️', to: '/speaking', d: 'Pronounce words and get instant feedback.' },
+    { n: 'Listening', ic: '🎧', to: '/practice', d: 'Audio drills and mock-test listening.' },
+    { n: 'Reading', ic: '📖', to: '/library', d: 'Textbooks, workbooks, and graded readers.' },
+    { n: 'Writing', ic: '✍️', to: '/practice', d: 'Handwriting sheets and typed practice.' },
+    { n: 'Grammar', ic: '✏️', to: '/library?q=grammar', d: 'Grammar references from the library.' },
+  ];
   var CATALOG = [
     { g: 'Browse', items: [['All Courses', '📚', '/courses'], ['HSK 1', '', '/syllabus/1'], ['HSK 2', '', '/syllabus/2'], ['HSK 3', '', '/syllabus/3'], ['HSK 4', '', '/syllabus/4'], ['HSK 5', '', '/syllabus/5'], ['HSK 6', '', '/syllabus/6']] },
-    { g: 'Skill level', items: [['Beginner', '🌱'], ['Intermediate', '🌿'], ['Advanced', '🌳']] },
-    { g: 'Skills', items: [['Speaking', '🗣️'], ['Listening', '🎧'], ['Reading', '📖'], ['Writing', '✍️'], ['Grammar', '✏️']] },
-    { g: 'Special', items: [['Business Chinese', '💼']] },
+    { g: 'Skill level', items: [['Beginner', '🌱', '/courses?band=beginner'], ['Intermediate', '🌿', '/courses?band=intermediate'], ['Advanced', '🌳', '/courses?band=advanced']] },
+    { g: 'Skills', items: [['Speaking', '🗣️', '/speaking'], ['Listening', '🎧', '/practice'], ['Reading', '📖', '/library'], ['Writing', '✍️', '/practice'], ['Grammar', '✏️', '/library?q=grammar']] },
+    { g: 'Special', items: [['Business Chinese', '💼', '/courses?tab=specialized']] },
   ];
 
   function courses(mount, activeLevel) {
     bind();
+    var q = (window.Router && window.Router.current && window.Router.current.query) || {};
+    var BANDS = {
+      beginner: { name: 'Beginner', levels: [1, 2] },
+      intermediate: { name: 'Intermediate', levels: [3, 4] },
+      advanced: { name: 'Advanced', levels: [5, 6] },
+    };
+    var activeBand = q.band && BANDS[q.band] ? q.band : null;
+    var hash = window.location.hash || '#/';
     var wrap = el('div', 'section');
     var shell = el('div', 'hx-shell');
 
-    // sidebar
+    // sidebar — every item is a real destination
     var side = el('aside', 'hx-side');
     CATALOG.forEach(function (grp) {
       var g = el('div', 'hx-side-group');
       g.appendChild(el('div', 'hx-side-title', grp.g));
       grp.items.forEach(function (it) {
-        var b = el('button', 'hx-side-item' + (it[2] === '/courses' && !activeLevel ? ' active' : '') + (it[2] === '/syllabus/' + activeLevel ? ' active' : ''));
+        var target = it[2] || '';
+        var b = el('button', 'hx-side-item' + (target && hash === '#' + target ? ' active' : ''));
         b.appendChild(el('span', 'ic', it[1] || '•'));
         b.appendChild(el('span', null, esc(it[0])));
-        b.addEventListener('click', function () {
-          if (it[2]) go(it[2]);
-          else U.toast(it[0] + ' — coming in a later phase');
-        });
+        if (target) b.addEventListener('click', function () { go(target); });
         g.appendChild(b);
       });
       side.appendChild(g);
@@ -160,43 +173,93 @@
     head.appendChild(el('h1', 'ui-h1', t('nav.courses')));
     main.appendChild(head);
 
+    function levelCards(levels) {
+      var g = el('div', 'ui-grid cols-3'); g.style.marginTop = '18px';
+      levels.forEach(function (l) {
+        var words = window.Vocab.list(l);
+        var lessons = Math.ceil(words.length / 25) || 0;
+        var mins = lessons * 20;
+        var c = el('div', 'ui-card hx-course');
+        c.style.borderTop = '3px solid ' + ['', '#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6'][l];
+        var top = el('div', 'hx-course-top');
+        var ic = el('div', 'hx-course-ic');
+        ic.style.background = ['', 'var(--mint)', 'var(--sky)', 'var(--amber)', 'var(--lav)', 'var(--pink)', 'var(--teal)'][l];
+        ic.textContent = 'HSK';
+        ic.style.fontSize = '12px'; ic.style.fontWeight = '800';
+        top.appendChild(ic);
+        var tt = el('div');
+        tt.appendChild(el('div', 'ui-h3', 'HSK ' + l));
+        tt.appendChild(el('div', 'ui-stat-sub', levelName(l)));
+        top.appendChild(tt);
+        c.appendChild(top);
+        var stats = el('div', 'ui-row'); stats.style.marginTop = '10px';
+        if (words.length) {
+          stats.appendChild(U.pill(lessons + ' ' + t('common.lessons')));
+          stats.appendChild(U.pill(words.length + ' ' + t('common.words')));
+          stats.appendChild(U.pill(Math.round(mins / 60) + t('common.hours') + (mins % 60 ? ' ' + (mins % 60) + t('common.minutes') : '')));
+        } else {
+          stats.appendChild(U.pill('No content'));
+        }
+        c.appendChild(stats);
+        var row = el('div', 'ui-row'); row.style.marginTop = '12px';
+        row.appendChild(U.button(words.length ? 'Open course' : 'Coming soon', { variant: words.length ? 'primary' : '', disabled: !words.length, onClick: function () { go('/syllabus/' + l); } }));
+        c.appendChild(row);
+        g.appendChild(c);
+      });
+      return g;
+    }
+
+    function skillCards() {
+      var g = el('div', 'ui-grid cols-3'); g.style.marginTop = '18px';
+      SKILL_LINKS.forEach(function (s) {
+        var c = el('div', 'ui-card hx-course');
+        c.style.borderTop = '3px solid var(--primary)';
+        var ic = el('div', 'hx-course-ic'); ic.style.fontSize = '24px'; ic.textContent = s.ic;
+        c.appendChild(ic);
+        c.appendChild(el('div', 'ui-h3', s.n));
+        c.appendChild(el('div', 'ui-stat-sub', s.d));
+        var row = el('div', 'ui-row'); row.style.marginTop = '12px';
+        row.appendChild(U.button('Open', { variant: 'primary', onClick: function () { go(s.to); } }));
+        c.appendChild(row);
+        g.appendChild(c);
+      });
+      return g;
+    }
+
+    function specializedCards() {
+      var g = el('div', 'ui-grid cols-3'); g.style.marginTop = '18px';
+      var c = el('div', 'ui-card hx-course');
+      var ic = el('div', 'hx-course-ic'); ic.style.fontSize = '24px'; ic.textContent = '💼';
+      c.appendChild(ic);
+      c.appendChild(el('div', 'ui-h3', 'Business Chinese'));
+      c.appendChild(el('div', 'ui-stat-sub', 'Not available in this dataset yet.'));
+      g.appendChild(c);
+      return g;
+    }
+
+    var body = el('div');
     var tabs = el('div', 'hx-tabs');
-    ['HSK Levels', 'Skill-based', 'Specialized'].forEach(function (lab, i) {
-      var b = el('button', 'hx-tab' + (i === 0 ? ' active' : ''), lab);
-      b.addEventListener('click', function () { U.toast(lab + ' — later phase'); });
+    var TABS = [
+      ['HSK Levels', function () {
+        if (activeBand) body.appendChild(el('p', 'ui-muted', BANDS[activeBand].name + ' · HSK ' + BANDS[activeBand].levels.join('–')));
+        body.appendChild(levelCards(activeBand ? BANDS[activeBand].levels : [1, 2, 3, 4, 5, 6]));
+      }],
+      ['Skill-based', function () { body.appendChild(skillCards()); }],
+      ['Specialized', function () { body.appendChild(specializedCards()); }],
+    ];
+    var activeTab = q.tab === 'specialized' ? 'Specialized' : q.tab === 'skills' ? 'Skill-based' : 'HSK Levels';
+    TABS.forEach(function (tb) {
+      var b = el('button', 'hx-tab' + (tb[0] === activeTab ? ' active' : ''), tb[0]);
+      b.addEventListener('click', function () {
+        tabs.querySelectorAll('.hx-tab').forEach(function (x) { x.classList.remove('active'); });
+        b.classList.add('active');
+        U.clear(body); tb[1]();
+      });
       tabs.appendChild(b);
     });
     main.appendChild(tabs);
-
-    var g = el('div', 'ui-grid cols-3'); g.style.marginTop = '18px';
-    [1, 2, 3, 4, 5, 6].forEach(function (l) {
-      var words = window.Vocab.list(l);
-      var lessons = Math.ceil(words.length / 25) || 0;
-      var mins = lessons * 20;
-      var c = el('div', 'ui-card hx-course');
-      c.style.borderTop = '3px solid ' + ['', '#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EC4899', '#14B8A6'][l];
-      var top = el('div', 'hx-course-top');
-      var ic = el('div', 'hx-course-ic');
-      ic.style.background = ['', 'var(--mint)', 'var(--sky)', 'var(--amber)', 'var(--lav)', 'var(--pink)', 'var(--teal)'][l];
-      ic.textContent = 'HSK';
-      ic.style.fontSize = '12px'; ic.style.fontWeight = '800';
-      top.appendChild(ic);
-      var tt = el('div');
-      tt.appendChild(el('div', 'ui-h3', 'HSK ' + l));
-      tt.appendChild(el('div', 'ui-stat-sub', levelName(l)));
-      top.appendChild(tt);
-      c.appendChild(top);
-      var stats = el('div', 'ui-row'); stats.style.marginTop = '10px';
-      stats.appendChild(U.pill(lessons + ' ' + t('common.lessons')));
-      stats.appendChild(U.pill(words.length + ' ' + t('common.words')));
-      stats.appendChild(U.pill(Math.round(mins / 60) + t('common.hours') + (mins % 60 ? ' ' + (mins % 60) + t('common.minutes') : '')));
-      c.appendChild(stats);
-      var row = el('div', 'ui-row'); row.style.marginTop = '12px';
-      row.appendChild(U.button(words.length ? 'Open course' : 'Coming soon', { variant: words.length ? 'primary' : '', disabled: !words.length, onClick: function () { go('/syllabus/' + l); } }));
-      c.appendChild(row);
-      g.appendChild(c);
-    });
-    main.appendChild(g);
+    main.appendChild(body);
+    TABS.filter(function (tb) { return tb[0] === activeTab; })[0][1]();
     shell.appendChild(main);
     wrap.appendChild(shell);
     mount.appendChild(wrap);
@@ -224,8 +287,9 @@
     var lessons = Math.ceil(words.length / 25);
     wrap.appendChild(el('p', 'ui-muted', words.length + ' ' + t('common.words') + ' · ' + lessons + ' ' + t('common.lessons') + ' · ' + Math.round((lessons * 20) / 60) + t('common.hours')));
     var tabs = el('div', 'hx-tabs');
+    var sTab = (window.Router && window.Router.current && window.Router.current.query && window.Router.current.query.tab) || 'overview';
     [['overview', 'Overview'], ['vocabulary', 'Vocabulary'], ['library', 'Library'], ['exams', 'Exams']].forEach(function (x) {
-      var b = el('button', 'hx-tab' + (x[0] === 'overview' ? ' active' : ''), x[1]);
+      var b = el('button', 'hx-tab' + (x[0] === sTab ? ' active' : ''), x[1]);
       b.addEventListener('click', function () {
         if (x[0] === 'vocabulary') go('/vocabulary?level=' + level);
         else if (x[0] === 'library') go('/library');
@@ -282,7 +346,7 @@
     var art = el('img', 'hx-stage-art'); art.src = window.Art.dialogue(960, 540); art.alt = '';
     stage.appendChild(art);
     var play = el('button', 'hx-play', '▶'); play.title = 'Play lesson video';
-    play.addEventListener('click', function () { U.toast('Video lectures arrive with media in a later phase'); });
+    play.addEventListener('click', function () { U.toast('This dataset bundles no lesson video — use the dialogue and vocabulary below.'); });
     stage.appendChild(play);
     var cap = el('div', 'hx-caption', 'Lesson ' + n + ' · ' + esc(levelName(level)) + ' dialogue');
     stage.appendChild(cap);
@@ -356,8 +420,9 @@
       b.addEventListener('click', function () {
         if (it[0] === 'Vocabulary') return go('/vocabulary');
         if (it[0] === 'HSK Mock Exams') return go('/exams');
-        if (!it[2]) return U.toast(it[0] + ' practice arrives in a later phase');
-        U.toast(it[0] + ' — switching');
+        if (it[0] === 'Speaking') return go('/speaking');
+        if (it[0] === 'Writing' || it[0] === 'Reading') return go('/practice');
+        U.toast(it[0] + ' — modes are below');
       });
       g.appendChild(b);
     });

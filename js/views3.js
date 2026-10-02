@@ -276,10 +276,14 @@
   }
 
   // ───────────────────────── LIBRARY ─────────────────────────
-  function bookGrid(level) {
+  function bookGrid(level, q) {
     var U_ = U;
     var books = (window.LIBRARY.books || []).filter(function (b) { return !level || b.level === level; });
-    if (!books.length) return U_.empty('No books yet', level ? 'No books imported for HSK ' + level + '.' : '');
+    if (q) {
+      var needle = String(q).toLowerCase();
+      books = books.filter(function (b) { return String(b.title || '').toLowerCase().indexOf(needle) !== -1; });
+    }
+    if (!books.length) return U_.empty('No books found', q ? 'Nothing matches “' + q + '”.' : (level ? 'No books imported for HSK ' + level + '.' : ''));
     var byLevel = {};
     books.forEach(function (b) { (byLevel[b.level] = byLevel[b.level] || []).push(b); });
     var box = el('div');
@@ -306,10 +310,12 @@
 
   function library(mount) {
     bind();
+    var q = (window.Router && window.Router.current && window.Router.current.query && window.Router.current.query.q) || '';
     var wrap = el('div', 'section');
     wrap.appendChild(el('h1', 'ui-h1', 'Library'));
-    wrap.appendChild(el('p', 'ui-muted', (window.LIBRARY.books || []).length + ' textbooks and workbooks, HSK 1–5.'));
-    wrap.appendChild(bookGrid(0));
+    wrap.appendChild(el('p', 'ui-muted', (window.LIBRARY.books || []).length + ' textbooks and workbooks, HSK 1–5.' +
+      (q ? ' Filtered by “' + U.esc(q) + '”.' : '')));
+    wrap.appendChild(bookGrid(0, q));
     mount.appendChild(wrap);
   }
 
