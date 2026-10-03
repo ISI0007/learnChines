@@ -394,7 +394,7 @@
     listening: { title: 'Listening', desc: 'Audio drills and mock-test listening.', to: '/practice', cta: 'Open listening practice' },
     reading: { title: 'Reading', desc: 'Textbooks, workbooks, and graded readers.', to: '/library', cta: 'Open library' },
     writing: { title: 'Writing', desc: 'Handwriting sheets and typed practice.', to: '/practice', cta: 'Open writing practice' },
-    grammar: { title: 'Grammar', desc: 'Grammar references and structures.', to: '/library?q=grammar', cta: 'Open grammar books' },
+    grammar: { title: 'Grammar', desc: 'HSK sentence patterns and structures.', to: '/grammar', cta: 'Open grammar browser' },
     vocab: { title: 'Vocabulary', desc: 'All 2,501 HSK words with flashcards and quizzes.', to: '/vocabulary', cta: 'Open vocabulary' },
     business: { title: 'Business Chinese', desc: 'Workplace language for professional contexts.', to: null, cta: null },
   };
@@ -419,8 +419,22 @@
       card.appendChild(el('p', 'ui-muted', 'Not available in this dataset yet — the source library has no dedicated material for this category.'));
     }
     wrap.appendChild(card);
-    // grammar: surface the actual grammar books
+    // grammar: surface the actual grammar patterns first, then library books
     if (id === 'grammar') {
+      if (window.Grammar && window.Grammar.count()) {
+        wrap.appendChild(U.sectionHead('Sentence patterns · ' + window.Grammar.count()));
+        var gc = el('div', 'ui-card');
+        window.Grammar.all().slice(0, 12).forEach(function (g) {
+          var r = el('div', 'hx-grammar');
+          var h = el('div', 'ui-row'); h.appendChild(U.badge('HSK ' + g.level, 'blue')); h.appendChild(el('span', 'ui-stat-sub', g.code)); r.appendChild(h);
+          r.appendChild(el('div', 'ui-p', U.esc(g.pattern || g.text)));
+          gc.appendChild(r);
+        });
+        wrap.appendChild(gc);
+        var gb = el('div', 'ui-row'); gb.style.marginTop = '12px';
+        gb.appendChild(U.button('Open full grammar browser', { variant: 'primary', onClick: function () { window.Router.go('/grammar'); } }));
+        wrap.appendChild(gb);
+      }
       var books = (window.LIBRARY.books || []).filter(function (b) { return /grammar|syllabus/i.test(b.title); });
       if (books.length) {
         wrap.appendChild(U.sectionHead('Grammar references'));
@@ -434,6 +448,57 @@
 
   Views.search = searchView;
   Views.category = categoryView;
+
+  // ── Grammar browser (Spec §4): patterns from the HSK lesson-structure list ──
+  function grammarView(mount, level) {
+    var U = window.UI;
+    var wrap = el('div', 'section');
+    wrap.appendChild(el('h1', 'ui-h1', 'Grammar'));
+    wrap.appendChild(el('p', 'ui-muted', (window.Grammar ? window.Grammar.count() : 0) + ' sentence patterns from the HSK lesson structure (levels 1–6).'));
+
+    var levels = window.Grammar ? window.Grammar.levels() : [];
+    var bar = el('div', 'hx-tabs'); bar.style.marginTop = '14px';
+    var all = el('button', 'hx-tab' + (!level ? ' active' : ''), 'All');
+    all.addEventListener('click', function () { window.Router.go('/grammar'); });
+    bar.appendChild(all);
+    levels.forEach(function (lv) {
+      var b = el('button', 'hx-tab' + (+level === lv ? ' active' : ''), 'HSK ' + lv);
+      b.addEventListener('click', function () { window.Router.go('/grammar/' + lv); });
+      bar.appendChild(b);
+    });
+    wrap.appendChild(bar);
+
+    var q = (window.Router.current.query && window.Router.current.query.q) || '';
+    var srow = el('div', 'ui-row'); srow.style.marginTop = '12px';
+    var inp = el('input', 'hx-input'); inp.value = q; inp.placeholder = 'Search patterns (e.g. 把, 除了, 越来越)…'; inp.style.maxWidth = '360px';
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') goGrammarSearch(inp.value); });
+    srow.appendChild(inp);
+    srow.appendChild(U.button('Search', { variant: 'primary', onClick: function () { goGrammarSearch(inp.value); } }));
+    wrap.appendChild(srow);
+
+    var items = q && window.Grammar ? window.Grammar.search(q)
+      : (level && window.Grammar ? window.Grammar.byLevel(level) : (window.Grammar ? window.Grammar.all() : []));
+
+    wrap.appendChild(U.sectionHead(items.length + ' pattern' + (items.length === 1 ? '' : 's')));
+    if (!items.length) { wrap.appendChild(U.empty('No patterns found', 'Try another level or keyword.')); mount.appendChild(wrap); return; }
+
+    var card = el('div', 'ui-card');
+    items.forEach(function (g) {
+      var row = el('div', 'hx-grammar');
+      var head = el('div', 'ui-row');
+      head.appendChild(U.badge('HSK ' + g.level, 'blue'));
+      head.appendChild(el('span', 'ui-stat-sub', g.code));
+      row.appendChild(head);
+      row.appendChild(el('div', 'ui-p', U.esc(g.pattern || g.text)));
+      if (g.pattern && g.text && g.text !== g.pattern) row.appendChild(el('div', 'ui-muted', U.esc(g.text)));
+      card.appendChild(row);
+    });
+    wrap.appendChild(card);
+    mount.appendChild(wrap);
+  }
+  function goGrammarSearch(v) { var s = String(v || '').trim(); window.Router.go('/grammar' + (s ? '?q=' + encodeURIComponent(s) : '')); }
+
+  Views.grammar = grammarView;
 
   window.Views = Views;
 })();

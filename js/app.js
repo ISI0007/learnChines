@@ -102,6 +102,8 @@
         name === '/settings' ? function () { V.settings(page); } :
         name === '/search' ? function () { V.search(page); } :
         name === '/category/:id' ? function () { V.category(page, params.id); } :
+        name === '/grammar' ? function () { V.grammar(page); } :
+        name === '/grammar/:level' ? function () { V.grammar(page, params.level); } :
         name === '/admin' ? function () { (window.V7 || { admin: V.admin }).admin(page); } :
         function () { V4.home(page); };
       fn();
@@ -147,6 +149,7 @@
 
     // routes (hash-based)
     ['/', '/courses', '/practice', '/community', '/exams', '/progress', '/profile', '/settings', '/admin', '/speaking', '/search', '/category/:id',
+     '/grammar', '/grammar/:level',
      '/syllabus/:level', '/lesson/:id', '/vocabulary', '/library', '/book/:idx', '/exam/:id', '/study/:mode'].forEach(function (p) {
       window.Router.on(p, function () { App.render(); });
     });
