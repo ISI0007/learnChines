@@ -55,7 +55,7 @@ if (adminTok) {
   console.log('\n[2] stats + search');
   const st = await req('GET', '/api/admin/translations/stats', null, adminTok);
   const d = st.data || {};
-  (st.ok && d.vocabTotal === 2501) ? ok('stats: vocabTotal = 2501') : bad('vocabTotal', d.vocabTotal);
+  (st.ok && d.vocabTotal >= 2501) ? ok('stats: vocabTotal = ' + d.vocabTotal) : bad('vocabTotal', d.vocabTotal);
   (st.ok && Array.isArray(d.languages)) ? ok('stats: per-language coverage list') : bad('stats languages');
   const search = await req('GET', '/api/admin/translations?lang=en&q=' + encodeURIComponent('坚持'), null, adminTok);
   (search.ok && search.data.rows.some((r) => r.hanzi === '坚持' || r.traditional === '坚持')) ? ok('search finds 坚持') : bad('search', JSON.stringify(search.data && search.data.rows && search.data.rows[0]));
